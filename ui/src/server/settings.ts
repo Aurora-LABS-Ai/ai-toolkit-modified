@@ -67,6 +67,21 @@ export const getHFToken = async () => {
   return token;
 };
 
+export const getCaptionSettings = async () => {
+  const keys = ['CAPTION_BASE_URL', 'CAPTION_API_KEY', 'CAPTION_MODEL', 'CAPTION_SYSTEM_PROMPT'];
+  const rows = await prisma.settings.findMany({ where: { key: { in: keys } } });
+  const map: Record<string, string> = {};
+  for (const row of rows) {
+    map[row.key] = row.value;
+  }
+  return {
+    baseUrl: map['CAPTION_BASE_URL'] || '',
+    apiKey: map['CAPTION_API_KEY'] || '',
+    model: map['CAPTION_MODEL'] || '',
+    systemPrompt: map['CAPTION_SYSTEM_PROMPT'] || '',
+  };
+};
+
 export const getDataRoot = async () => {
   const key = 'DATA_ROOT';
   let dataRoot = myCache.get(key) as string;

@@ -30,6 +30,44 @@ except ImportError:
     )
 
 
+def _convert_comfy_to_diffusers(comfy_sd: dict) -> dict:
+    """
+    Convert a ComfyUI-format ZImage single-safetensors state dict
+    to the diffusers ZImageTransformer2DModel key format.
+
+    Differences:
+      x_embedder.*           → all_x_embedder.2-1.*
+      final_layer.*          → all_final_layer.2-1.*
+      *.attention.k_norm.*   → *.attention.norm_k.*
+      *.attention.q_norm.*   → *.attention.norm_q.*
+      *.attention.out.*      → *.attention.to_out.0.*
+      *.attention.qkv.weight → split into to_q / to_k / to_v
+    """
+    new_sd = {}
+    for k, v in comfy_sd.items():
+        # resolution-specific embedder / final layer
+        if k.startswith('x_embedder.'):
+            new_sd['all_x_embedder.2-1.' + k[len('x_embedder.'):]] = v
+            continue
+        if k.startswith('final_layer.'):
+            new_sd['all_final_layer.2-1.' + k[len('final_layer.'):]] = v
+            continue
+        # fused QKV → three separate projections
+        if k.endswith('.attention.qkv.weight'):
+            prefix = k[:-len('.attention.qkv.weight')]
+            d = v.shape[0] // 3
+            new_sd[f'{prefix}.attention.to_q.weight'] = v[:d].contiguous()
+            new_sd[f'{prefix}.attention.to_k.weight'] = v[d:2*d].contiguous()
+            new_sd[f'{prefix}.attention.to_v.weight'] = v[2*d:].contiguous()
+            continue
+        # rename norm keys and out projection
+        k = k.replace('.attention.k_norm.', '.attention.norm_k.')
+        k = k.replace('.attention.q_norm.', '.attention.norm_q.')
+        k = k.replace('.attention.out.',    '.attention.to_out.0.')
+        new_sd[k] = v
+    return new_sd
+
+
 scheduler_config = {
     "num_train_timesteps": 1000,
     "use_dynamic_shifting": False,
@@ -155,20 +193,56 @@ class ZImageModel(BaseModel):
 
         self.print_and_status_update("Loading transformer")
 
-        transformer_path = model_path
-        transformer_subfolder = "transformer"
-        if os.path.exists(transformer_path):
-            transformer_subfolder = None
-            transformer_path = os.path.join(transformer_path, "transformer")
-            # check if the path is a full checkpoint.
-            te_folder_path = os.path.join(model_path, "text_encoder")
-            # if we have the te, this folder is a full checkpoint, use it as the base
-            if os.path.exists(te_folder_path):
-                base_model_path = model_path
-
-        transformer = ZImageTransformer2DModel.from_pretrained(
-            transformer_path, subfolder=transformer_subfolder, torch_dtype=dtype
+        # ── Single-file ComfyUI safetensors path ────────────────────────────
+        is_single_safetensors = (
+            os.path.isfile(model_path) and
+            model_path.lower().endswith('.safetensors')
         )
+
+        if is_single_safetensors:
+            if not base_model_path:
+                raise ValueError(
+                    "When loading ZImage from a single safetensors file, "
+                    "'extras_name_or_path' must point to the base model "
+                    "(e.g. 'Tongyi-MAI/Z-Image-Turbo') so the model config, "
+                    "text encoder, tokenizer, and VAE can be resolved."
+                )
+            self.print_and_status_update(
+                f"Detected ComfyUI safetensors — converting keys from {os.path.basename(model_path)}"
+            )
+            comfy_sd = load_file(model_path, device="cpu")
+            converted_sd = _convert_comfy_to_diffusers(comfy_sd)
+
+            # Cast to target dtype
+            for k in converted_sd:
+                converted_sd[k] = converted_sd[k].to(dtype)
+
+            # Build model structure from config without downloading weights
+            transformer_config = ZImageTransformer2DModel.load_config(
+                base_model_path, subfolder="transformer"
+            )
+            with torch.device("meta"):
+                transformer = ZImageTransformer2DModel.from_config(transformer_config)
+
+            transformer.load_state_dict(converted_sd, assign=True)
+            self.print_and_status_update("ComfyUI safetensors loaded and converted")
+
+        else:
+            # ── Diffusers format directory or HF repo ────────────────────────
+            transformer_path = model_path
+            transformer_subfolder = "transformer"
+            if os.path.exists(transformer_path):
+                transformer_subfolder = None
+                transformer_path = os.path.join(transformer_path, "transformer")
+                # check if the path is a full checkpoint.
+                te_folder_path = os.path.join(model_path, "text_encoder")
+                # if we have the te, this folder is a full checkpoint, use it as the base
+                if os.path.exists(te_folder_path):
+                    base_model_path = model_path
+
+            transformer = ZImageTransformer2DModel.from_pretrained(
+                transformer_path, subfolder=transformer_subfolder, torch_dtype=dtype
+            )
 
         # load assistant lora if specified
         if self.model_config.assistant_lora_path is not None:

@@ -29,26 +29,35 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { HF_TOKEN, TRAINING_FOLDER, DATASETS_FOLDER } = body;
+    const {
+      HF_TOKEN,
+      TRAINING_FOLDER,
+      DATASETS_FOLDER,
+      CAPTION_BASE_URL,
+      CAPTION_API_KEY,
+      CAPTION_MODEL,
+      CAPTION_SYSTEM_PROMPT,
+    } = body;
 
-    // Upsert both settings
-    await Promise.all([
-      prisma.settings.upsert({
-        where: { key: 'HF_TOKEN' },
-        update: { value: HF_TOKEN },
-        create: { key: 'HF_TOKEN', value: HF_TOKEN },
-      }),
-      prisma.settings.upsert({
-        where: { key: 'TRAINING_FOLDER' },
-        update: { value: TRAINING_FOLDER },
-        create: { key: 'TRAINING_FOLDER', value: TRAINING_FOLDER },
-      }),
-      prisma.settings.upsert({
-        where: { key: 'DATASETS_FOLDER' },
-        update: { value: DATASETS_FOLDER },
-        create: { key: 'DATASETS_FOLDER', value: DATASETS_FOLDER },
-      }),
-    ]);
+    const keys = [
+      { key: 'HF_TOKEN', value: HF_TOKEN ?? '' },
+      { key: 'TRAINING_FOLDER', value: TRAINING_FOLDER ?? '' },
+      { key: 'DATASETS_FOLDER', value: DATASETS_FOLDER ?? '' },
+      { key: 'CAPTION_BASE_URL', value: CAPTION_BASE_URL ?? '' },
+      { key: 'CAPTION_API_KEY', value: CAPTION_API_KEY ?? '' },
+      { key: 'CAPTION_MODEL', value: CAPTION_MODEL ?? '' },
+      { key: 'CAPTION_SYSTEM_PROMPT', value: CAPTION_SYSTEM_PROMPT ?? '' },
+    ];
+
+    await Promise.all(
+      keys.map(({ key, value }) =>
+        prisma.settings.upsert({
+          where: { key },
+          update: { value },
+          create: { key, value },
+        }),
+      ),
+    );
 
     flushCache();
 

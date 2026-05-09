@@ -13,6 +13,8 @@ import {
   captionerTypes,
   defaultQtype,
   groupedCaptionerTypes,
+  joyCaptionTypes,
+  joyCaptionLengths,
   maxNewTokensOptions,
   maxResOptions,
   quantizationOptions,
@@ -167,13 +169,142 @@ const CaptionSimpleJob: React.FC<Props> = ({ jobConfig, setJobConfig, gpuIDs, se
       </div>
       {additionalSections.includes('caption.caption_prompt') && (
         <div className="mt-4">
+          {selectedCaptionOption?.caption_prompt_presets && selectedCaptionOption.caption_prompt_presets.length > 0 && (
+            <div className="mb-2">
+              <label className="block text-xs text-gray-400 mb-1">Caption Style</label>
+              <div className="flex flex-wrap gap-1">
+                {selectedCaptionOption.caption_prompt_presets.map(preset => (
+                  <button
+                    key={preset.value}
+                    type="button"
+                    onClick={() => setJobConfig(preset.value, 'config.process[0].caption.caption_prompt')}
+                    className={`px-2 py-1 rounded text-xs transition-colors ${
+                      jobConfig.config.process[0].caption.caption_prompt === preset.value
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                    }`}
+                  >
+                    {preset.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           <TextAreaInput
             label="Caption Prompt"
             value={jobConfig.config.process[0].caption.caption_prompt || ''}
-            onChange={value => {
-              setJobConfig(value, 'config.process[0].caption.caption_prompt');
-            }}
+            onChange={value => setJobConfig(value, 'config.process[0].caption.caption_prompt')}
             placeholder="Enter caption prompt"
+          />
+        </div>
+      )}
+
+      {/* ── JoyCaption full template UI ── */}
+      {additionalSections.includes('caption.joy_template') && (
+        <div className="mt-4 space-y-4">
+
+          {/* Row 1: caption type + length side by side */}
+          <div className="grid grid-cols-2 gap-4">
+            <SelectInput
+              label="Caption Style"
+              value={jobConfig.config.process[0].caption.caption_type || 'Descriptive'}
+              onChange={value => setJobConfig(value, 'config.process[0].caption.caption_type')}
+              options={joyCaptionTypes}
+            />
+            <SelectInput
+              label="Caption Length"
+              value={jobConfig.config.process[0].caption.caption_length || 'any'}
+              onChange={value => setJobConfig(value, 'config.process[0].caption.caption_length')}
+              options={joyCaptionLengths}
+            />
+          </div>
+
+          {/* Row 2: name / trigger word */}
+          <div>
+            <TextInput
+              label="Character / Subject Name (trigger word)"
+              value={jobConfig.config.process[0].caption.name_input || ''}
+              onChange={value => setJobConfig(value?.trim() || '', 'config.process[0].caption.name_input')}
+              placeholder="e.g. rosa  —  the model will use this name when referring to the person"
+            />
+          </div>
+
+          {/* Row 3: extra option checkboxes */}
+          <div>
+            <label className="block text-xs font-medium text-gray-400 mb-2">What to include / exclude</label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1">
+              <Checkbox
+                label="Refer to person/character by name above"
+                checked={jobConfig.config.process[0].caption.opt_refer_by_name || false}
+                onChange={v => setJobConfig(v, 'config.process[0].caption.opt_refer_by_name')}
+              />
+              <Checkbox
+                label="Include lighting details"
+                checked={jobConfig.config.process[0].caption.opt_include_lighting || false}
+                onChange={v => setJobConfig(v, 'config.process[0].caption.opt_include_lighting')}
+              />
+              <Checkbox
+                label="Include camera angle"
+                checked={jobConfig.config.process[0].caption.opt_include_camera_angle || false}
+                onChange={v => setJobConfig(v, 'config.process[0].caption.opt_include_camera_angle')}
+              />
+              <Checkbox
+                label="Include camera / lens details (photos)"
+                checked={jobConfig.config.process[0].caption.opt_include_camera_details || false}
+                onChange={v => setJobConfig(v, 'config.process[0].caption.opt_include_camera_details')}
+              />
+              <Checkbox
+                label="Note watermarks"
+                checked={jobConfig.config.process[0].caption.opt_include_watermark || false}
+                onChange={v => setJobConfig(v, 'config.process[0].caption.opt_include_watermark')}
+              />
+              <Checkbox
+                label="Note JPEG artifacts"
+                checked={jobConfig.config.process[0].caption.opt_include_jpeg || false}
+                onChange={v => setJobConfig(v, 'config.process[0].caption.opt_include_jpeg')}
+              />
+              <Checkbox
+                label="Exclude fixed attributes (ethnicity, gender…)"
+                checked={jobConfig.config.process[0].caption.opt_exclude_unchangeable || false}
+                onChange={v => setJobConfig(v, 'config.process[0].caption.opt_exclude_unchangeable')}
+              />
+              <Checkbox
+                label="Maintain artistic perspective"
+                checked={jobConfig.config.process[0].caption.opt_artistic_perspective || false}
+                onChange={v => setJobConfig(v, 'config.process[0].caption.opt_artistic_perspective')}
+              />
+              <Checkbox
+                label="Keep it PG (no sexual content)"
+                checked={jobConfig.config.process[0].caption.opt_no_sexual || false}
+                onChange={v => setJobConfig(v, 'config.process[0].caption.opt_no_sexual')}
+              />
+              <Checkbox
+                label="No identifiable real people"
+                checked={jobConfig.config.process[0].caption.opt_no_real_people || false}
+                onChange={v => setJobConfig(v, 'config.process[0].caption.opt_no_real_people')}
+              />
+            </div>
+          </div>
+
+          {/* Row 4: custom instructions */}
+          <div>
+            <TextAreaInput
+              label="Custom Instructions (optional)"
+              value={jobConfig.config.process[0].caption.custom_instructions || ''}
+              onChange={value => setJobConfig(value?.trim() || '', 'config.process[0].caption.custom_instructions')}
+              placeholder={`Additional rules appended to every prompt, e.g.\n- Always mention hair and eye color\n- Never use the word "depicts"\n- Focus on facial expression`}
+            />
+            <p className="mt-1 text-xs text-gray-500">
+              Appended after the style template and extra options. Use this for anything the checkboxes don't cover.
+            </p>
+          </div>
+
+          {/* Row 5: max tokens */}
+          <SelectInput
+            label="Max New Tokens"
+            value={`${jobConfig.config.process[0].caption.max_new_tokens || 512}`}
+            onChange={value => setJobConfig(parseInt(value), 'config.process[0].caption.max_new_tokens')}
+            options={maxNewTokensOptions}
           />
         </div>
       )}

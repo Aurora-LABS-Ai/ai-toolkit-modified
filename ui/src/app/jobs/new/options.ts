@@ -30,7 +30,8 @@ type AdditionalSections =
   | 'model.layer_offloading'
   | 'model.low_vram'
   | 'model.qie.match_target_res'
-  | 'model.assistant_lora_path';
+  | 'model.assistant_lora_path'
+  | 'model.extras_name_or_path';
 
 type ModelGroup = 'image' | 'instruction' | 'video' | 'experimental' | 'audio';
 
@@ -595,8 +596,8 @@ export const modelArchs: ModelArch[] = [
     label: 'Z-Image Turbo (w/ Training Adapter)',
     group: 'image',
     defaults: {
-      // default updates when [selected, unselected] in the UI
       'config.process[0].model.name_or_path': ['Tongyi-MAI/Z-Image-Turbo', defaultNameOrPath],
+      'config.process[0].model.extras_name_or_path': ['Tongyi-MAI/Z-Image-Turbo', undefined],
       'config.process[0].model.quantize': [true, false],
       'config.process[0].model.quantize_te': [true, false],
       'config.process[0].model.low_vram': [true, false],
@@ -613,7 +614,7 @@ export const modelArchs: ModelArch[] = [
       'config.process[0].sample.sample_steps': [8, 25],
     },
     disableSections: ['network.conv'],
-    additionalSections: ['model.low_vram', 'model.layer_offloading', 'model.assistant_lora_path'],
+    additionalSections: ['model.low_vram', 'model.layer_offloading', 'model.assistant_lora_path', 'model.extras_name_or_path'],
   },
   {
     name: 'zimage',
@@ -633,14 +634,13 @@ export const modelArchs: ModelArch[] = [
       'config.process[0].sample.sample_steps': [30, 25],
     },
     disableSections: ['network.conv'],
-    additionalSections: ['model.low_vram', 'model.layer_offloading'],
+    additionalSections: ['model.low_vram', 'model.layer_offloading', 'model.extras_name_or_path'],
   },
   {
     name: 'zimage:deturbo',
     label: 'Z-Image De-Turbo (De-Distilled)',
     group: 'image',
     defaults: {
-      // default updates when [selected, unselected] in the UI
       'config.process[0].model.name_or_path': ['ostris/Z-Image-De-Turbo', defaultNameOrPath],
       'config.process[0].model.extras_name_or_path': ['Tongyi-MAI/Z-Image-Turbo', undefined],
       'config.process[0].model.quantize': [true, false],
@@ -655,7 +655,7 @@ export const modelArchs: ModelArch[] = [
       'config.process[0].sample.sample_steps': [25, 25],
     },
     disableSections: ['network.conv'],
-    additionalSections: ['model.low_vram', 'model.layer_offloading'],
+    additionalSections: ['model.low_vram', 'model.layer_offloading', 'model.extras_name_or_path'],
   },
   {
     name: 'ltx2',
@@ -967,16 +967,19 @@ export const jobTypeOptions: JobTypeOption[] = [
     disableSections: ['slider'],
   },
   {
+    value: 'sd_trainer',
+    label: 'Full Fine-tuning',
+    disableSections: ['slider', 'trigger_word', 'train.diff_output_preservation', 'train.blank_prompt_preservation'],
+  },
+  {
     value: 'concept_slider',
     label: 'Concept Slider',
     disableSections: ['trigger_word', 'train.diff_output_preservation'],
     onActivate: (config: JobConfig) => {
-      // add default slider config
       config.config.process[0].slider = { ...defaultSliderConfig };
       return config;
     },
     onDeactivate: (config: JobConfig) => {
-      // remove slider config
       delete config.config.process[0].slider;
       return config;
     },

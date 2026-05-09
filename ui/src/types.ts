@@ -129,6 +129,9 @@ export interface TrainConfig {
   content_or_style: string;
   optimizer: string;
   lr: number;
+  lr_scheduler?: string;
+  max_grad_norm?: number;
+  unet_lr?: number;
   ema_config?: EMAConfig;
   dtype: string;
   unload_text_encoder: boolean;
@@ -169,6 +172,9 @@ export interface ModelConfig {
   layer_offloading_transformer_percent?: number;
   layer_offloading_text_encoder_percent?: number;
   assistant_lora_path?: string;
+  extras_name_or_path?: string;
+  vae_path?: string | null;
+  te_name_or_path?: string | null;
 }
 
 export interface SampleItem {
@@ -270,6 +276,21 @@ export interface CaptionProcessConfig {
     max_res?: number;
     max_new_tokens?: number;
     fixed_caption?: string;
+    // JoyCaption template fields
+    caption_type?: string;
+    caption_length?: string;
+    name_input?: string;
+    opt_refer_by_name?: boolean;
+    opt_exclude_unchangeable?: boolean;
+    opt_include_lighting?: boolean;
+    opt_include_camera_angle?: boolean;
+    opt_include_watermark?: boolean;
+    opt_include_jpeg?: boolean;
+    opt_include_camera_details?: boolean;
+    opt_no_sexual?: boolean;
+    opt_no_real_people?: boolean;
+    opt_artistic_perspective?: boolean;
+    custom_instructions?: string;
   }
 }
 

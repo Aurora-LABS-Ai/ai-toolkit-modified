@@ -209,46 +209,21 @@ export default function TrainingForm() {
               />
             </div>
             <div className="mx-4 bg-gray-200 dark:bg-gray-800 w-1 h-6"></div>
-            <div>
-              <Button className="text-gray-200 bg-gray-800 px-3 py-1 rounded-md" onClick={handleImportConfig}>
-                Import Config
-              </Button>
-            </div>
-            <div className="mx-4 bg-gray-200 dark:bg-gray-800 w-1 h-6"></div>
           </>
         )}
-        {!showAdvancedView && (
+        {!showAdvancedView && jobConfig?.config.process[0].type === 'concept_slider' && (
           <>
-            <div>
-              <SelectInput
-                value={`${jobConfig?.config.process[0].type}`}
-                onChange={value => {
-                  // undo current job type changes
-                  const currentOption = jobTypeOptions.find(
-                    option => option.value === jobConfig?.config.process[0].type,
-                  );
-                  if (currentOption && currentOption.onDeactivate) {
-                    setJobConfig(currentOption.onDeactivate(objectCopy(jobConfig)));
-                  }
-                  const option = jobTypeOptions.find(option => option.value === value);
-                  if (option) {
-                    if (option.onActivate) {
-                      setJobConfig(option.onActivate(objectCopy(jobConfig)));
-                    }
-                    jobTypeOptions.forEach(opt => {
-                      if (opt.value !== option.value && opt.onDeactivate) {
-                        setJobConfig(opt.onDeactivate(objectCopy(jobConfig)));
-                      }
-                    });
-                  }
-                  setJobConfig(value, 'config.process[0].type');
-                }}
-                options={jobTypeOptions}
-              />
-            </div>
+            <div className="px-3 py-1 text-sm rounded-md bg-gray-700 text-gray-200">Concept Slider</div>
             <div className="mx-4 bg-gray-200 dark:bg-gray-800 w-1 h-6"></div>
           </>
         )}
+
+        <div>
+          <Button className="text-gray-200 bg-gray-800 px-3 py-1 rounded-md" onClick={handleImportConfig}>
+            Import Config
+          </Button>
+        </div>
+        <div className="mx-4 bg-gray-200 dark:bg-gray-800 w-1 h-6"></div>
 
         <div className="pr-2">
           <Button

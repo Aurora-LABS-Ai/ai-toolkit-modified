@@ -76,6 +76,7 @@ export default function SimpleJob({
     return sections;
   }, [modelArch, jobType]);
 
+  const isFullFT = jobConfig.config.process[0].type === 'sd_trainer';
   const isVideoModel = !!(modelArch?.group === 'video');
   const isAudioModel = !!(modelArch?.group === 'audio');
 
@@ -117,18 +118,19 @@ export default function SimpleJob({
   }, [modelArch]);
 
   const numTopCards = useMemo(() => {
-    let count = 4; // job settings, model config, target config, save config
+    // Full FT has no Target/LoRA card
+    let count = isFullFT ? 3 : 4; // job settings, model config, [target if lora], save config
     if (modelArch?.additionalSections?.includes('model.multistage')) {
-      count += 1; // add multistage card
+      count += 1;
     }
     if (!disableSections.includes('model.quantize')) {
-      count += 1; // add quantization card
+      count += 1;
     }
-    if (!disableSections.includes('slider')) {
-      count += 1; // add slider card
+    if (!isFullFT && !disableSections.includes('slider')) {
+      count += 1;
     }
     return count;
-  }, [modelArch, disableSections]);
+  }, [modelArch, disableSections, isFullFT]);
 
   let topBarClass = 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-4 gap-6';
 
@@ -230,6 +232,50 @@ export default function SimpleJob({
             </div>
           </div>
         )}
+        {/* ── Training Mode Selector ── */}
+        <div className="grid grid-cols-2 gap-4">
+          <button
+            type="button"
+            disabled={runId !== null}
+            onClick={() => {
+              if (!isFullFT) return;
+              setJobConfig('diffusion_trainer', 'config.process[0].type');
+            }}
+            className={`p-5 rounded-xl border-2 text-left transition-all ${
+              !isFullFT
+                ? 'border-blue-500 bg-blue-950/40'
+                : 'border-gray-700 bg-gray-900 hover:border-gray-500'
+            } ${runId !== null ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
+          >
+            <div className="text-base font-semibold mb-1 text-white">
+              LoRA Training
+            </div>
+            <div className="text-xs text-gray-400">
+              Lightweight adapter — smaller output, fast to train, easy to share and merge. Recommended for most use cases.
+            </div>
+          </button>
+          <button
+            type="button"
+            disabled={runId !== null}
+            onClick={() => {
+              if (isFullFT) return;
+              setJobConfig('sd_trainer', 'config.process[0].type');
+            }}
+            className={`p-5 rounded-xl border-2 text-left transition-all ${
+              isFullFT
+                ? 'border-purple-500 bg-purple-950/40'
+                : 'border-gray-700 bg-gray-900 hover:border-gray-500'
+            } ${runId !== null ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
+          >
+            <div className="text-base font-semibold mb-1 text-white">
+              Full Fine-tuning
+            </div>
+            <div className="text-xs text-gray-400">
+              Train all model weights directly — maximum quality and control. Requires more VRAM and training steps.
+            </div>
+          </button>
+        </div>
+
         <div className={topBarClass}>
           <Card title="Job">
             <TextInput
@@ -289,6 +335,38 @@ export default function SimpleJob({
               }}
               placeholder=""
               required
+            />
+            {modelArch?.additionalSections?.includes('model.extras_name_or_path') && (
+              <TextInput
+                label="Extras model path"
+                value={jobConfig.config.process[0].model.extras_name_or_path ?? ''}
+                docKey="config.process[0].model.extras_name_or_path"
+                onChange={(value: string | undefined) => {
+                  if (value?.trim() === '') {
+                    value = undefined;
+                  }
+                  setJobConfig(value, 'config.process[0].model.extras_name_or_path');
+                }}
+                placeholder=""
+              />
+            )}
+            <TextInput
+              label="VAE Path"
+              value={jobConfig.config.process[0].model.vae_path || ''}
+              onChange={(value: string | null) => {
+                if (value?.trim() === '') value = null;
+                setJobConfig(value, 'config.process[0].model.vae_path');
+              }}
+              placeholder="Local path or HF repo (optional)"
+            />
+            <TextInput
+              label="Text Encoder Path"
+              value={jobConfig.config.process[0].model.te_name_or_path || ''}
+              onChange={(value: string | null) => {
+                if (value?.trim() === '') value = null;
+                setJobConfig(value, 'config.process[0].model.te_name_or_path');
+              }}
+              placeholder="e.g. Qwen/Qwen3-8B (optional)"
             />
             {modelArch?.additionalSections?.includes('model.assistant_lora_path') && (
               <TextInput
@@ -421,7 +499,14 @@ export default function SimpleJob({
               />
             </Card>
           )}
-          <Card title="Target">
+          {isFullFT ? (
+            <Card title="Target">
+              <div className="py-2 text-sm text-gray-400">
+                Full fine-tuning trains all transformer weights directly — no adapter network needed.
+              </div>
+            </Card>
+          ) : null}
+          {!isFullFT && <Card title="Target">
             <SelectInput
               label="Target Type"
               value={jobConfig.config.process[0].network?.type ?? 'lora'}
@@ -476,8 +561,8 @@ export default function SimpleJob({
                 )}
               </>
             )}
-          </Card>
-          {!disableSections.includes('slider') && (
+          </Card>}
+          {!isFullFT && !disableSections.includes('slider') && (
             <Card title="Slider">
               <TextInput
                 label="Target Class"
@@ -597,7 +682,7 @@ export default function SimpleJob({
                 <NumberInput
                   label="Weight Decay"
                   className="pt-2"
-                  value={jobConfig.config.process[0].train.optimizer_params.weight_decay}
+                  value={(jobConfig.config.process[0].train as any).optimizer_params?.weight_decay ?? 0}
                   onChange={value => setJobConfig(value, 'config.process[0].train.optimizer_params.weight_decay')}
                   placeholder="eg. 0.0001"
                   min={0}
@@ -655,7 +740,36 @@ export default function SimpleJob({
                 )}
               </div>
               <div>
-                <FormGroup label="EMA (Exponential Moving Average)">
+                <FormGroup label="Train Targets">
+                  <Checkbox
+                    label="Train UNet"
+                    className="pt-1"
+                    checked={jobConfig.config.process[0].train.train_unet ?? true}
+                    onChange={value => setJobConfig(value, 'config.process[0].train.train_unet')}
+                  />
+                  <Checkbox
+                    label="Train Text Encoder"
+                    checked={jobConfig.config.process[0].train.train_text_encoder || false}
+                    onChange={value => setJobConfig(value, 'config.process[0].train.train_text_encoder')}
+                  />
+                  <Checkbox
+                    label="Gradient Checkpointing"
+                    checked={jobConfig.config.process[0].train.gradient_checkpointing || false}
+                    onChange={value => setJobConfig(value, 'config.process[0].train.gradient_checkpointing')}
+                  />
+                </FormGroup>
+                <SelectInput
+                  label="Noise Scheduler"
+                  className="pt-2"
+                  value={jobConfig.config.process[0].train.noise_scheduler || 'flowmatch'}
+                  onChange={value => setJobConfig(value, 'config.process[0].train.noise_scheduler')}
+                  options={[
+                    { value: 'flowmatch', label: 'FlowMatch' },
+                    { value: 'ddpm', label: 'DDPM' },
+                    { value: 'ddim', label: 'DDIM' },
+                  ]}
+                />
+                <FormGroup label="EMA (Exponential Moving Average)" className="pt-2">
                   <Checkbox
                     label="Use EMA"
                     className="pt-1"
@@ -786,8 +900,39 @@ export default function SimpleJob({
           </Card>
         </div>
         <div>
-          <Card title="Advanced" collapsible>
+          <Card title="Advanced" collapsible defaultOpen={true}>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div>
+                <SelectInput
+                  label="LR Scheduler"
+                  value={jobConfig.config.process[0].train.lr_scheduler || 'constant'}
+                  onChange={value => setJobConfig(value, 'config.process[0].train.lr_scheduler')}
+                  options={[
+                    { value: 'constant', label: 'Constant' },
+                    { value: 'linear', label: 'Linear' },
+                    { value: 'cosine', label: 'Cosine' },
+                    { value: 'cosine_with_restarts', label: 'Cosine with Restarts' },
+                    { value: 'polynomial', label: 'Polynomial' },
+                    { value: 'constant_with_warmup', label: 'Constant with Warmup' },
+                  ]}
+                />
+                <NumberInput
+                  label="Max Grad Norm"
+                  className="pt-2"
+                  value={jobConfig.config.process[0].train.max_grad_norm ?? 1.0}
+                  onChange={value => setJobConfig(value, 'config.process[0].train.max_grad_norm')}
+                  placeholder="eg. 1.0"
+                  min={0}
+                />
+                <NumberInput
+                  label="UNet LR Override"
+                  className="pt-2"
+                  value={jobConfig.config.process[0].train.unet_lr ?? null}
+                  onChange={value => setJobConfig(value || undefined, 'config.process[0].train.unet_lr')}
+                  placeholder="Leave blank to use main LR"
+                  min={0}
+                />
+              </div>
               <div>
                 <Checkbox
                   label="Do Differential Guidance"
@@ -803,22 +948,19 @@ export default function SimpleJob({
                       jobConfig.config.process[0].train.differential_guidance_scale === undefined ||
                       jobConfig.config.process[0].train.differential_guidance_scale === null
                     ) {
-                      // set default differential guidance scale to 3.0
                       setJobConfig(3.0, 'config.process[0].train.differential_guidance_scale');
                     }
                   }}
                 />
                 {jobConfig.config.process[0].train.differential_guidance_scale && (
-                  <>
-                    <NumberInput
-                      label="Differential Guidance Scale"
-                      className="pt-2"
-                      value={(jobConfig.config.process[0].train.differential_guidance_scale as number) || 3.0}
-                      onChange={value => setJobConfig(value, 'config.process[0].train.differential_guidance_scale')}
-                      placeholder="eg. 3.0"
-                      min={0}
-                    />
-                  </>
+                  <NumberInput
+                    label="Differential Guidance Scale"
+                    className="pt-2"
+                    value={(jobConfig.config.process[0].train.differential_guidance_scale as number) || 3.0}
+                    onChange={value => setJobConfig(value, 'config.process[0].train.differential_guidance_scale')}
+                    placeholder="eg. 3.0"
+                    min={0}
+                  />
                 )}
               </div>
             </div>

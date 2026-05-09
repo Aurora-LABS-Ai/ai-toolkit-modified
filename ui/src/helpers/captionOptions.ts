@@ -1,13 +1,22 @@
 import { GroupedSelectOption, SelectOption } from "@/types";
 
 type CaptionGroup = 'image' | 'music';
-type AdditionalSections = 'caption.model_name_or_path2' | 'caption.caption_prompt' | 'caption.max_res' | 'caption.max_new_tokens' | 'caption.fixed_caption';
+type AdditionalSections =
+  | 'caption.model_name_or_path2'
+  | 'caption.caption_prompt'
+  | 'caption.max_res'
+  | 'caption.max_new_tokens'
+  | 'caption.fixed_caption'
+  | 'caption.trigger_words'
+  | 'caption.custom_instructions'
+  | 'caption.joy_template';
 
 export interface CaptionOption {
     name: string;
     label: string;
     group: CaptionGroup;
     hasMultiLinePrompts?: boolean;
+    caption_prompt_presets?: SelectOption[];
     defaults?: { [key: string]: any };
     additionalSections?: AdditionalSections[];
     name_or_path_options?: SelectOption[];
@@ -22,6 +31,32 @@ const extensionsImage = ['jpg', 'jpeg', 'png', 'bmp', 'webp'];
 const defaultExtensions = [...extensionsImage];
 
 const defaultImageCaptionPrompt = "Caption this image as if you were going to try to generate it with an image generator. Be thurough and describe everything in the image. Be decisive by stating things as they are. Do not say things like \"It appears that\" Or \"possibly\". Start out with things like \"A person on the beach\" or \"A black dragon\". No preamble. Just get to the point.";
+
+export const joyCaptionTypes: SelectOption[] = [
+    { value: 'Descriptive', label: 'Descriptive' },
+    { value: 'Descriptive (Casual)', label: 'Descriptive (Casual)' },
+    { value: 'Straightforward', label: 'Straightforward' },
+    { value: 'Stable Diffusion Prompt', label: 'Stable Diffusion Prompt' },
+    { value: 'MidJourney', label: 'MidJourney' },
+    { value: 'Danbooru tag list', label: 'Danbooru tag list' },
+    { value: 'e621 tag list', label: 'e621 tag list' },
+    { value: 'Rule34 tag list', label: 'Rule34 tag list' },
+    { value: 'Booru-like tag list', label: 'Booru-like tag list' },
+    { value: 'Art Critic', label: 'Art Critic' },
+    { value: 'Product Listing', label: 'Product Listing' },
+    { value: 'Social Media Post', label: 'Social Media Post' },
+];
+
+export const joyCaptionLengths: SelectOption[] = [
+    { value: 'any', label: 'Any length' },
+    { value: 'short', label: 'Short' },
+    { value: 'medium', label: 'Medium' },
+    { value: 'long', label: 'Long' },
+    { value: '100', label: '≤ 100 words' },
+    { value: '200', label: '≤ 200 words' },
+    { value: '300', label: '≤ 300 words' },
+    { value: '400', label: '≤ 400 words' },
+];
 
 export const captionerTypes: CaptionOption[] = [
     {
@@ -43,6 +78,23 @@ export const captionerTypes: CaptionOption[] = [
             'caption.model_name_or_path2',
             'caption.fixed_caption',
         ],
+    },
+    {
+        name: 'JoyCaptioner',
+        label: 'JoyCaption Beta One',
+        group: 'image',
+        defaults: {
+            'config.process[0].caption.model_name_or_path': ['fancyfeast/llama-joycaption-beta-one-hf-llava', defaultNameOrPath],
+            'config.process[0].caption.extensions': [extensionsImage, defaultExtensions],
+            'config.process[0].caption.caption_type': ['Descriptive', undefined],
+            'config.process[0].caption.caption_length': ['any', undefined],
+            'config.process[0].caption.max_new_tokens': [512, undefined],
+        },
+        name_or_path_options: [
+            { value: 'fancyfeast/llama-joycaption-beta-one-hf-llava', label: 'HF: joycaption-beta-one (auto download)' },
+            { value: '/root/alvan-custom/joy-captioner', label: 'Local: /root/alvan-custom/joy-captioner' },
+        ],
+        additionalSections: ['caption.joy_template'],
     },
     {
         name: 'Qwen3VLCaptioner',

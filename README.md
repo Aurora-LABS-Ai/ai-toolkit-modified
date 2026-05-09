@@ -2,6 +2,16 @@
 
 AI Toolkit is an easy to use all in one training suite for diffusion models. I try to support all the latest models on consumer grade hardware. Image and video models. It can be run as a GUI or CLI. It is designed to be easy to use but still have every feature imaginable. Free and open source.
 
+## Aurora LABS Modified Fork
+
+This fork adds workflow improvements for local full fine-tuning, Z-Image Turbo training, and dataset captioning:
+
+- Z-Image can load a local single-file ComfyUI `.safetensors` transformer checkpoint and convert it to Diffusers keys at load time. Use `model.extras_name_or_path` to point at the base Z-Image repo, such as `Tongyi-MAI/Z-Image-Turbo`, so config, tokenizer, text encoder, and VAE files can be resolved.
+- The new-job UI includes a LoRA vs Full Fine-tuning mode selector, exposes extra model paths for Z-Image presets, keeps Import Config visible in both simple and advanced views, and adds fields for optional VAE/text-encoder overrides.
+- Z-Image Turbo, Z-Image, and Z-Image De-Turbo presets expose the extras/base model path field. Z-Image Turbo defaults the extras path to `Tongyi-MAI/Z-Image-Turbo`.
+- FLUX.2 Klein can override its text encoder path with `model.te_name_or_path`.
+- Dataset pages support image selection and batch AI caption generation through an OpenAI-compatible vision endpoint configured in Settings.
+- Captioning support now includes JoyCaption Beta One plus expanded caption template controls for caption style, length, trigger/name use, and optional detail filters.
 
 
 ## Supported Models
@@ -63,7 +73,7 @@ Requirements:
 
 Linux:
 ```bash
-git clone https://github.com/ostris/ai-toolkit.git
+git clone https://github.com/Aurora-LABS-Ai/ai-toolkit-modified.git
 cd ai-toolkit
 python3 -m venv venv
 source venv/bin/activate
@@ -80,7 +90,7 @@ Windows:
 If you are having issues with Windows. I recommend using the easy install script at [https://github.com/Tavris1/AI-Toolkit-Easy-Install](https://github.com/Tavris1/AI-Toolkit-Easy-Install)
 
 ```bash
-git clone https://github.com/ostris/ai-toolkit.git
+git clone https://github.com/Aurora-LABS-Ai/ai-toolkit-modified.git
 cd ai-toolkit
 python -m venv venv
 .\venv\Scripts\activate
@@ -96,7 +106,7 @@ locates at `./run_mac.zsh` that will install the dependencies locally and run th
 do the following:
 
 ```bash
-git clone https://github.com/ostris/ai-toolkit.git
+git clone https://github.com/Aurora-LABS-Ai/ai-toolkit-modified.git
 cd ai-toolkit
 chmod +x run_mac.zsh
 ./run_mac.zsh
@@ -185,7 +195,7 @@ I have also created a short video showing how to get started using AI Toolkit wi
 ### 1. Setup
 #### ai-toolkit:
 ```
-git clone https://github.com/ostris/ai-toolkit.git
+git clone https://github.com/Aurora-LABS-Ai/ai-toolkit-modified.git
 cd ai-toolkit
 git submodule update --init --recursive
 python -m venv venv
@@ -536,4 +546,3 @@ _Last updated: 2026-03-31 18:10 UTC_
 </p>
 
 ---
-
