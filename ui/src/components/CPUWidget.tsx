@@ -1,82 +1,82 @@
 import React from 'react';
 import { CpuInfo } from '@/types';
-import { Thermometer, Zap, Clock, HardDrive, Fan, Cpu } from 'lucide-react';
+import { Cpu, HardDrive } from 'lucide-react';
 
 interface CPUWidgetProps {
   cpu: CpuInfo | null;
 }
 
+function StatBar({ value, color = 'bg-blue-500' }: { value: number; color?: string }) {
+  return (
+    <div className="w-full h-1.5 bg-gray-800 rounded-full overflow-hidden">
+      <div
+        className={`h-full rounded-full transition-all duration-500 ${color}`}
+        style={{ width: `${Math.min(Math.max(value, 0), 100)}%` }}
+      />
+    </div>
+  );
+}
+
 export default function CPUWidget({ cpu }: CPUWidgetProps) {
-  const formatMemory = (mb: number): string => {
-    return mb >= 1024 ? `${(mb / 1024).toFixed(1)} GB` : `${mb} MB`;
-  };
-
-  const getUtilizationColor = (value: number): string => {
-    return value < 30 ? 'bg-emerald-500' : value < 70 ? 'bg-amber-500' : 'bg-rose-500';
-  };
-
-  const getTemperatureColor = (temp: number): string => {
-    return temp < 50 ? 'text-emerald-500' : temp < 80 ? 'text-amber-500' : 'text-rose-500';
-  };
-
   if (!cpu) {
     return (
-      <div className="bg-gray-900 rounded-xl shadow-lg overflow-hidden border border-gray-800">
-        <div className="bg-gray-800 px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <h2 className="font-semibold text-gray-100">CPU Info</h2>
-          </div>
+      <div className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden">
+        <div className="px-4 py-3 border-b border-gray-800">
+          <span className="text-sm font-medium text-gray-100">System</span>
         </div>
         <div className="p-4">
-          <p className="text-sm text-gray-400">No CPU data available</p>
+          <p className="text-sm text-gray-600">No data available</p>
         </div>
       </div>
     );
   }
 
+  const fmt = (mb: number): string =>
+    mb >= 1024 ? `${(mb / 1024).toFixed(1)} GB` : `${mb} MB`;
+
+  const usedMem = cpu.totalMemory - cpu.availableMemory;
+  const memPct = cpu.totalMemory > 0 ? (usedMem / cpu.totalMemory) * 100 : 0;
+
+  const loadColor =
+    cpu.currentLoad < 30
+      ? 'bg-emerald-500'
+      : cpu.currentLoad < 70
+        ? 'bg-amber-500'
+        : 'bg-rose-500';
+
   return (
-    <div className="bg-gray-900 rounded-xl shadow-lg overflow-hidden border border-gray-800">
-      <div className="bg-gray-800 px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center space-x-2">
-          <h2 className="font-semibold text-gray-100">{cpu.name}</h2>
-          {/* <span className="px-2 py-0.5 bg-gray-700 rounded-full text-xs text-gray-300">#{1}</span> */}
-        </div>
+    <div className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center px-4 py-3 border-b border-gray-800">
+        <span className="text-sm font-medium text-gray-100 truncate">{cpu.name}</span>
       </div>
 
       <div className="p-4 space-y-4">
-        {/* Temperature, Fan, and Utilization Section */}
-        <div className="grid grid-cols-2 gap-4">
-          <div className="">
-            <div className="flex items-center space-x-2 mb-1 mt-1">
-              <Cpu className="w-4 h-4 text-gray-400" />
-              <p className="text-xs text-gray-400">CPU Load</p>
-              <span className="text-xs text-gray-300 ml-auto">{cpu.currentLoad.toFixed(1)}%</span>
+        {/* CPU Load */}
+        <div>
+          <div className="flex items-center justify-between mb-1.5">
+            <div className="flex items-center gap-1.5">
+              <Cpu className="w-3.5 h-3.5 text-gray-500" />
+              <span className="text-xs text-gray-500">CPU Load</span>
             </div>
-            <div className="w-full bg-gray-700 rounded-full h-1">
-              <div
-                className={`h-1 rounded-full transition-all ${getUtilizationColor(cpu.currentLoad)}`}
-                style={{ width: `${cpu.currentLoad}%` }}
-              />
-            </div>
+            <span className="text-xs font-medium text-gray-300">{cpu.currentLoad.toFixed(1)}%</span>
           </div>
-          <div>
-            <div className="flex items-center space-x-2 mb-1 mt-1">
-              <HardDrive className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-              <p className="text-xs text-gray-400">Memory</p>
-              <span className="text-xs text-gray-300 ml-auto">
-                {(((cpu.totalMemory - cpu.availableMemory) / cpu.totalMemory) * 100).toFixed(1)}%
-              </span>
+          <StatBar value={cpu.currentLoad} color={loadColor} />
+        </div>
+
+        {/* Memory */}
+        <div>
+          <div className="flex items-center justify-between mb-1.5">
+            <div className="flex items-center gap-1.5">
+              <HardDrive className="w-3.5 h-3.5 text-blue-500" />
+              <span className="text-xs text-gray-500">Memory</span>
             </div>
-            <div className="w-full bg-gray-700 rounded-full h-1">
-              <div
-                className="h-1 rounded-full bg-blue-500 transition-all"
-                style={{ width: `${((cpu.totalMemory - cpu.availableMemory) / cpu.totalMemory) * 100}%` }}
-              />
-            </div>
-            <p className="text-xs text-gray-400 mt-0.5">
-              {formatMemory(cpu.totalMemory - cpu.availableMemory)} / {formatMemory(cpu.totalMemory)}
-            </p>
+            <span className="text-xs font-medium text-gray-300">{memPct.toFixed(1)}%</span>
           </div>
+          <StatBar value={memPct} color="bg-blue-500" />
+          <p className="text-xs text-gray-600 mt-1">
+            {fmt(usedMem)} / {fmt(cpu.totalMemory)}
+          </p>
         </div>
       </div>
     </div>

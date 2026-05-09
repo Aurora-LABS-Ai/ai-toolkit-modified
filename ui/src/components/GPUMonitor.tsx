@@ -35,13 +35,10 @@ const GpuMonitor: React.FC = () => {
         });
     };
 
-    // Fetch immediately on component mount
     fetchGpuInfo();
 
-    // Set up interval to fetch every 1 seconds
     const intervalId = setInterval(fetchGpuInfo, 1000);
 
-    // Clean up interval on component unmount
     return () => clearInterval(intervalId);
   }, []);
 
@@ -69,13 +66,6 @@ const GpuMonitor: React.FC = () => {
     }
   };
 
-  console.log('state', {
-    loading,
-    gpuData,
-    error,
-    lastUpdated,
-  });
-
   const content = useMemo(() => {
     if (loading && !gpuData) {
       return <Loading />;
@@ -83,35 +73,33 @@ const GpuMonitor: React.FC = () => {
 
     if (error) {
       return (
-        <div className="bg-red-900 border border-red-600 text-red-200 px-4 py-3 rounded relative" role="alert">
-          <strong className="font-bold">Error!</strong>
-          <span className="block sm:inline"> {error}</span>
+        <div className="bg-gray-900 border border-rose-500/20 rounded-xl px-4 py-3 text-rose-400 text-sm">
+          {error}
         </div>
       );
     }
 
     if (!gpuData) {
       return (
-        <div className="bg-yellow-900 border border-yellow-700 text-yellow-300 px-4 py-3 rounded relative" role="alert">
-          <span className="block sm:inline">No GPU data available.</span>
+        <div className="bg-gray-900 border border-amber-500/20 rounded-xl px-4 py-3 text-amber-400 text-sm">
+          No GPU data available.
         </div>
       );
     }
 
     if (!gpuData.hasNvidiaSmi && !gpuData.isMac) {
       return (
-        <div className="bg-yellow-900 border border-yellow-700 text-yellow-300 px-4 py-3 rounded relative" role="alert">
-          <strong className="font-bold">No NVIDIA GPUs detected!</strong>
-          <span className="block sm:inline"> nvidia-smi is not available on this system.</span>
-          {gpuData.error && <p className="mt-2 text-sm">{gpuData.error}</p>}
+        <div className="bg-gray-900 border border-amber-500/20 rounded-xl px-4 py-3 text-amber-400 text-sm">
+          <span className="font-semibold">No NVIDIA GPUs detected.</span> nvidia-smi is not available on this system.
+          {gpuData.error && <p className="mt-2 text-xs opacity-70">{gpuData.error}</p>}
         </div>
       );
     }
 
     if (gpuData.gpus.length === 0) {
       return (
-        <div className="bg-yellow-900 border border-yellow-700 text-yellow-300 px-4 py-3 rounded relative" role="alert">
-          <span className="block sm:inline">No GPUs found, but nvidia-smi is available.</span>
+        <div className="bg-gray-900 border border-amber-500/20 rounded-xl px-4 py-3 text-amber-400 text-sm">
+          No GPUs found, but nvidia-smi is available.
         </div>
       );
     }
@@ -119,7 +107,7 @@ const GpuMonitor: React.FC = () => {
     const gridClass = getGridClasses(gpuData?.gpus?.length || 1);
 
     return (
-      <div className={`grid ${gridClass} gap-3`}>
+      <div className={`grid ${gridClass} gap-4`}>
         {gpuData.gpus.map((gpu, idx) => (
           <GPUWidget key={idx} gpu={gpu} />
         ))}
@@ -128,10 +116,14 @@ const GpuMonitor: React.FC = () => {
   }, [loading, gpuData, error]);
 
   return (
-    <div className="w-full">
-      <div className="flex justify-between items-center mb-2">
-        <h1 className="text-md">GPU Monitor</h1>
-        <div className="text-xs text-gray-500">Last updated: {lastUpdated?.toLocaleTimeString()}</div>
+    <div className="w-full space-y-3">
+      <div className="flex items-center justify-between">
+        <h2 className="text-base font-semibold text-gray-200">GPU Monitor</h2>
+        {lastUpdated && (
+          <span className="text-xs text-gray-600">
+            Updated {lastUpdated.toLocaleTimeString()}
+          </span>
+        )}
       </div>
       {content}
     </div>

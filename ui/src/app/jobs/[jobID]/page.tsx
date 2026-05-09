@@ -3,7 +3,6 @@
 import { useState, use } from 'react';
 import { FaChevronLeft } from 'react-icons/fa';
 import { MdDashboard, MdImage, MdShowChart, MdCode } from 'react-icons/md';
-import { Button } from '@headlessui/react';
 import { TopBar, MainContent } from '@/components/layout';
 import useJob from '@/hooks/useJob';
 import SampleImages, { SampleImagesMenu } from '@/components/SampleImages';
@@ -23,7 +22,7 @@ interface Page {
   component: React.ComponentType<{ job: Job }>;
   menuItem?: React.ComponentType<{ job?: Job | null }> | null;
   mainCss?: string;
-  jobTypes?: string[]; // if specified, only show this page for these job types
+  jobTypes?: string[];
 }
 
 const pages: Page[] = [
@@ -56,7 +55,7 @@ const pages: Page[] = [
     value: 'config',
     icon: MdCode,
     component: JobConfigViewer,
-    mainCss: 'pt-[80px] px-0 pb-0',
+    mainCss: 'pt-[88px] px-0 pb-0',
   },
 ];
 
@@ -67,7 +66,6 @@ export default function JobPage({ params }: { params: { jobID: string } }) {
   const [pageKey, setPageKey] = useState<PageKey>('overview');
 
   const page = pages.find(p => p.value === pageKey);
-
   const jobType = job?.job_type || 'unknown';
 
   let title = `Job: ${job?.name || 'Loading...'}`;
@@ -77,60 +75,66 @@ export default function JobPage({ params }: { params: { jobID: string } }) {
 
   return (
     <>
-      {/* Fixed top bar */}
+      {/* Top bar */}
       <TopBar>
-        <div>
-          <Button className="text-gray-500 dark:text-gray-300 px-3 mt-1" onClick={() => redirect('/jobs')}>
-            <FaChevronLeft />
-          </Button>
-        </div>
-        <div>
-          <h1 className="text-lg">{title}</h1>
-        </div>
-        <div className="flex-1"></div>
+        <button
+          className="text-gray-500 hover:text-gray-300 px-3 transition-colors"
+          onClick={() => redirect('/jobs')}
+        >
+          <FaChevronLeft />
+        </button>
+        <h1 className="text-sm font-medium text-gray-200">{title}</h1>
+        <div className="flex-1" />
         {job && (
           <JobActionBar
             job={job}
             onRefresh={refreshJob}
             hideView
-            afterDelete={() => {
-              redirect('/jobs');
-            }}
+            afterDelete={() => redirect('/jobs')}
             autoStartQueue={true}
           />
         )}
       </TopBar>
-      <MainContent className={pages.find(page => page.value === pageKey)?.mainCss}>
-        {status === 'loading' && job == null && <p>Loading...</p>}
-        {status === 'error' && job == null && <p>Error fetching job</p>}
-        {job && (
-          <>
-            {pages.map(page => {
-              const Component = page.component;
-              return page.value === pageKey ? <Component key={page.value} job={job} /> : null;
-            })}
-          </>
+
+      <MainContent className={pages.find(p => p.value === pageKey)?.mainCss}>
+        {status === 'loading' && job == null && (
+          <p className="text-gray-500 text-sm pt-4">Loading...</p>
         )}
+        {status === 'error' && job == null && (
+          <p className="text-rose-400 text-sm pt-4">Error fetching job</p>
+        )}
+        {job &&
+          pages.map(p => {
+            const Component = p.component;
+            return p.value === pageKey ? <Component key={p.value} job={job} /> : null;
+          })}
       </MainContent>
-      <div className="bg-gray-800 absolute top-12 left-0 w-full h-8 flex items-center px-2 text-sm">
-        {pages.map(page => {
-          if (page.jobTypes && !page.jobTypes.includes(jobType)) {
-            return null;
-          }
+
+      {/* Tab bar */}
+      <div className="absolute top-12 left-0 w-full h-10 bg-gray-950 border-b border-gray-800 flex items-stretch px-2">
+        {pages.map(tab => {
+          if (tab.jobTypes && !tab.jobTypes.includes(jobType)) return null;
+          const active = tab.value === pageKey;
+          const Icon = tab.icon;
           return (
-            <Button
-              key={page.value}
-              onClick={() => setPageKey(page.value)}
-              className={`px-4 py-1 h-8 flex items-center gap-1.5 ${page.value === pageKey ? 'bg-gray-300 dark:bg-gray-700 text-white' : ''}`}
+            <button
+              key={tab.value}
+              onClick={() => setPageKey(tab.value)}
+              className={`relative flex items-center gap-1.5 px-4 text-sm transition-colors ${
+                active ? 'text-white' : 'text-gray-500 hover:text-gray-300'
+              }`}
             >
-              <page.icon className="text-sm" />
-              {page.name}
-            </Button>
+              <Icon className="w-4 h-4" />
+              {tab.name}
+              {active && (
+                <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-blue-500 rounded-t-full" />
+              )}
+            </button>
           );
         })}
         {page?.menuItem && (
           <>
-            <div className="flex-grow"></div>
+            <div className="flex-grow" />
             <page.menuItem job={job} />
           </>
         )}

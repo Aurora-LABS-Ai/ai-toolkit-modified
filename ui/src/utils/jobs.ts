@@ -94,3 +94,15 @@ export const getTotalSteps = (job: Job) => {
   const jobConfig = getJobConfig(job);
   return jobConfig.config.process[0].train?.steps || 0;
 };
+
+const ANSI_RE = /\x1B\[[0-9;]*[mGKHFJA]/g;
+
+export function parseStepFromLog(log: string): number | null {
+  if (!log) return null;
+  const lines = log.split(/\n|\r\n/).map(l => l.split(/\r/).pop()!.replace(ANSI_RE, ''));
+  for (let i = lines.length - 1; i >= 0; i--) {
+    const match = lines[i].match(/\|\s*(\d+)\/(\d+)\s+\[/);
+    if (match) return parseInt(match[1], 10);
+  }
+  return null;
+}
