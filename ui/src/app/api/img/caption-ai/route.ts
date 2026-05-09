@@ -4,6 +4,7 @@ import path from 'path';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
 import { getDatasetsRoot, getCaptionSettings, getHFToken } from '@/server/settings';
+import { captionWithJoyCaptionWorker } from '@/server/joycaptionWorker';
 
 const execFileAsync = promisify(execFile);
 
@@ -90,6 +91,7 @@ export async function POST(request: Request) {
       joyCaptionType,
       joyCaptionLength,
       joyLowVram,
+      keepJoyCaptionLoaded,
       optReferByName,
       optExcludeUnchangeable,
       optIncludeLighting,
@@ -111,6 +113,15 @@ export async function POST(request: Request) {
     }
 
     if (endpointType === 'joycaption_local' || endpointType === 'joycaption_hf' || endpointType === 'joycaption') {
+      if (keepJoyCaptionLoaded === 'true') {
+        const result = await captionWithJoyCaptionWorker(resolvedImagePath);
+        return NextResponse.json({
+          caption: result.caption,
+          captionPath: result.captionPath,
+          keptLoaded: true,
+        });
+      }
+
       const toolkitRoot = path.resolve(process.cwd(), '..');
       const scriptPath = path.join(toolkitRoot, 'scripts', 'joycaption_single.py');
       const venvPython = path.join(toolkitRoot, 'venv', 'bin', 'python');

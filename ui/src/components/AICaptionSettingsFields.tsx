@@ -1,9 +1,11 @@
 'use client';
 
 import type React from 'react';
+import { useEffect, useState } from 'react';
 import { Settings } from '@/hooks/useSettings';
 import { joyCaptionLengths, joyCaptionTypes } from '@/helpers/captionOptions';
 import { NumberInput, SelectInput, TextAreaInput, TextInput } from '@/components/formInputs';
+import { apiClient } from '@/utils/api';
 
 export const LOCAL_JOYCAPTION_MODEL = '/root/alvan-custom/joy-captioner';
 export const HF_JOYCAPTION_MODEL = 'fancyfeast/llama-joycaption-beta-one-hf-llava';
@@ -28,6 +30,7 @@ export const applyCaptionDefaults = (settings: Settings): Settings => {
     CAPTION_JOY_CAPTION_TYPE: settings.CAPTION_JOY_CAPTION_TYPE || 'Descriptive',
     CAPTION_JOY_CAPTION_LENGTH: settings.CAPTION_JOY_CAPTION_LENGTH || 'any',
     CAPTION_JOY_LOW_VRAM: settings.CAPTION_JOY_LOW_VRAM || 'false',
+    CAPTION_KEEP_LOADED: settings.CAPTION_KEEP_LOADED || 'false',
     CAPTION_OPT_REFER_BY_NAME: settings.CAPTION_OPT_REFER_BY_NAME || 'false',
     CAPTION_OPT_EXCLUDE_UNCHANGEABLE: settings.CAPTION_OPT_EXCLUDE_UNCHANGEABLE || 'false',
     CAPTION_OPT_INCLUDE_LIGHTING: settings.CAPTION_OPT_INCLUDE_LIGHTING || 'false',
@@ -62,6 +65,8 @@ interface AICaptionSettingsFieldsProps {
 export const AICaptionSettingsFields: React.FC<AICaptionSettingsFieldsProps> = ({ settings, setSettings }) => {
   const backend = normalizeCaptionBackend(settings.CAPTION_ENDPOINT_TYPE);
   const isJoyCaption = isJoyCaptionBackend(backend);
+  const [workerStatus, setWorkerStatus] = useState<any>(null);
+  const [workerAction, setWorkerAction] = useState<'idle' | 'loading' | 'unloading'>('idle');
 
   const updateSetting = (key: keyof Settings, value: string) => {
     setSettings(prev => ({ ...prev, [key]: value }));
@@ -78,6 +83,43 @@ export const AICaptionSettingsFields: React.FC<AICaptionSettingsFieldsProps> = (
       }
       return next;
     });
+  };
+
+  const refreshWorkerStatus = async () => {
+    if (!isJoyCaption) return;
+    try {
+      const res = await apiClient.get('/api/captioner/status');
+      setWorkerStatus(res.data);
+    } catch {
+      setWorkerStatus(null);
+    }
+  };
+
+  useEffect(() => {
+    refreshWorkerStatus();
+  }, [isJoyCaption]);
+
+  const loadWorker = async () => {
+    setWorkerAction('loading');
+    try {
+      const nextSettings = applyCaptionDefaults({ ...settings, CAPTION_KEEP_LOADED: 'true' });
+      setSettings(nextSettings);
+      await apiClient.post('/api/settings', nextSettings);
+      await apiClient.post('/api/captioner/load');
+      await refreshWorkerStatus();
+    } finally {
+      setWorkerAction('idle');
+    }
+  };
+
+  const unloadWorker = async () => {
+    setWorkerAction('unloading');
+    try {
+      await apiClient.post('/api/captioner/unload');
+      await refreshWorkerStatus();
+    } finally {
+      setWorkerAction('idle');
+    }
   };
 
   return (
@@ -145,6 +187,38 @@ export const AICaptionSettingsFields: React.FC<AICaptionSettingsFieldsProps> = (
             />
             Low VRAM mode
           </label>
+          <label className="flex items-center gap-3 text-sm text-gray-200">
+            <input
+              type="checkbox"
+              checked={settings.CAPTION_KEEP_LOADED === 'true'}
+              onChange={e => updateSetting('CAPTION_KEEP_LOADED', e.target.checked ? 'true' : 'false')}
+              className="h-4 w-4 rounded border-gray-600 bg-gray-900"
+            />
+            Keep JoyCaption loaded between captions
+          </label>
+          <div className="flex flex-wrap items-center gap-3 rounded-md border border-gray-700 bg-gray-900/60 p-3 text-sm text-gray-200">
+            <span className="mr-auto">
+              JoyCaption worker: {workerStatus?.status || 'unloaded'}
+              {workerStatus?.pid ? ` (PID ${workerStatus.pid})` : ''}
+            </span>
+            <button
+              type="button"
+              onClick={loadWorker}
+              disabled={workerAction !== 'idle'}
+              className="rounded-md bg-purple-600 px-3 py-1.5 text-white hover:bg-purple-700 disabled:opacity-50"
+            >
+              {workerAction === 'loading' ? 'Loading...' : 'Load & Keep Loaded'}
+            </button>
+            <button
+              type="button"
+              onClick={unloadWorker}
+              disabled={workerAction !== 'idle'}
+              className="rounded-md bg-gray-700 px-3 py-1.5 text-white hover:bg-gray-600 disabled:opacity-50"
+            >
+              {workerAction === 'unloading' ? 'Unloading...' : 'Unload Before Training'}
+            </button>
+            {workerStatus?.lastError && <div className="basis-full text-xs text-red-400">{workerStatus.lastError}</div>}
+          </div>
         </>
       )}
 

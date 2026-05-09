@@ -6,6 +6,7 @@ import classNames from 'classnames';
 import { apiClient } from '@/utils/api';
 import AudioPlayer from './AudioPlayer';
 import { isVideo, isAudio } from '@/utils/basic';
+import { Modal } from './Modal';
 
 interface DatasetImageCardProps {
   imageUrl: string;
@@ -46,6 +47,7 @@ const DatasetImageCard: React.FC<DatasetImageCardProps> = ({
   const [savedCaption, setSavedCaption] = useState<string>('');
   const [isAICaptioning, setIsAICaptioning] = useState<boolean>(false);
   const [aiError, setAiError] = useState<string | null>(null);
+  const [isPreviewOpen, setIsPreviewOpen] = useState<boolean>(false);
   const abortControllerRef = useRef<AbortController | null>(null);
   const aiCaptioningRef = useRef<boolean>(false);
 
@@ -143,6 +145,12 @@ const DatasetImageCard: React.FC<DatasetImageCardProps> = ({
 
   const handleLoad = (): void => setLoaded(true);
 
+  const openPreview = () => {
+    if (!isItImage) return;
+    setIsPreviewOpen(true);
+    fetchCaption();
+  };
+
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>): void => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -197,7 +205,8 @@ const DatasetImageCard: React.FC<DatasetImageCardProps> = ({
                   src={`/api/img/${encodeURIComponent(imageUrl)}`}
                   alt={alt}
                   onLoad={handleLoad}
-                  className={`w-full h-full object-contain transition-opacity duration-300 ${loaded ? 'opacity-100' : 'opacity-0'}`}
+                  onClick={openPreview}
+                  className={`w-full h-full object-contain cursor-zoom-in transition-opacity duration-300 ${loaded ? 'opacity-100' : 'opacity-0'}`}
                 />
               )}
             </>
@@ -236,7 +245,7 @@ const DatasetImageCard: React.FC<DatasetImageCardProps> = ({
               <button
                 type="button"
                 title={captionConfigured ? 'Generate AI caption' : 'Configure AI caption'}
-                onClick={() => runAICaption()}
+                onClick={e => { e.stopPropagation(); runAICaption(); }}
                 disabled={isAICaptioning}
                 className={classNames(
                   'rounded-full p-2 transition-colors disabled:opacity-50',
@@ -250,7 +259,8 @@ const DatasetImageCard: React.FC<DatasetImageCardProps> = ({
             )}
             <button
               className="bg-gray-800 rounded-full p-2"
-              onClick={() => {
+              onClick={e => {
+                e.stopPropagation();
                 openConfirm({
                   title: `Delete ${isItAVideo ? 'video' : 'image'}`,
                   message: `Are you sure you want to delete this ${isItAVideo ? 'video' : 'image'}? This action cannot be undone.`,
@@ -314,6 +324,37 @@ const DatasetImageCard: React.FC<DatasetImageCardProps> = ({
           <div className="w-full h-full flex items-center justify-center text-gray-400">Loading caption...</div>
         )}
       </div>
+
+      <Modal
+        isOpen={isPreviewOpen}
+        onClose={() => {
+          saveCaption();
+          setIsPreviewOpen(false);
+        }}
+        title={imageUrl.replace(/^.*[\\/]/, '')}
+        size="xl"
+      >
+        <div className="space-y-4">
+          <div className="flex max-h-[72vh] items-center justify-center bg-black">
+            <img
+              src={`/api/img/${encodeURIComponent(imageUrl)}`}
+              alt={alt}
+              className="max-h-[72vh] max-w-full object-contain"
+            />
+          </div>
+          <form onSubmit={e => { e.preventDefault(); saveCaption(); }}>
+            <label className="mb-2 block text-sm font-medium text-gray-200">Caption</label>
+            <textarea
+              className="min-h-[120px] w-full resize-y rounded-md border border-gray-700 bg-gray-950 px-3 py-2 text-sm text-white outline-none focus:ring-2 focus:ring-gray-600"
+              value={caption}
+              readOnly={isBusy}
+              onChange={e => setCaption(e.target.value)}
+              onBlur={saveCaption}
+            />
+          </form>
+          {aiError && <div className="text-sm text-red-400">{aiError}</div>}
+        </div>
+      </Modal>
     </div>
   );
 };

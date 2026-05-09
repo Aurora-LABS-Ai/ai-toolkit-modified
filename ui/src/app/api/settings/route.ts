@@ -36,6 +36,7 @@ export async function GET() {
     settingsObject.CAPTION_JOY_CAPTION_TYPE = settingsObject.CAPTION_JOY_CAPTION_TYPE || 'Descriptive';
     settingsObject.CAPTION_JOY_CAPTION_LENGTH = settingsObject.CAPTION_JOY_CAPTION_LENGTH || 'any';
     settingsObject.CAPTION_JOY_LOW_VRAM = settingsObject.CAPTION_JOY_LOW_VRAM || 'false';
+    settingsObject.CAPTION_KEEP_LOADED = settingsObject.CAPTION_KEEP_LOADED || 'false';
     settingsObject.CAPTION_OPT_REFER_BY_NAME = settingsObject.CAPTION_OPT_REFER_BY_NAME || 'false';
     settingsObject.CAPTION_OPT_EXCLUDE_UNCHANGEABLE = settingsObject.CAPTION_OPT_EXCLUDE_UNCHANGEABLE || 'false';
     settingsObject.CAPTION_OPT_INCLUDE_LIGHTING = settingsObject.CAPTION_OPT_INCLUDE_LIGHTING || 'false';
@@ -70,6 +71,7 @@ export async function POST(request: Request) {
       CAPTION_JOY_CAPTION_TYPE,
       CAPTION_JOY_CAPTION_LENGTH,
       CAPTION_JOY_LOW_VRAM,
+      CAPTION_KEEP_LOADED,
       CAPTION_OPT_REFER_BY_NAME,
       CAPTION_OPT_EXCLUDE_UNCHANGEABLE,
       CAPTION_OPT_INCLUDE_LIGHTING,
@@ -100,6 +102,7 @@ export async function POST(request: Request) {
       { key: 'CAPTION_JOY_CAPTION_TYPE', value: CAPTION_JOY_CAPTION_TYPE ?? 'Descriptive' },
       { key: 'CAPTION_JOY_CAPTION_LENGTH', value: CAPTION_JOY_CAPTION_LENGTH ?? 'any' },
       { key: 'CAPTION_JOY_LOW_VRAM', value: CAPTION_JOY_LOW_VRAM ?? 'false' },
+      { key: 'CAPTION_KEEP_LOADED', value: CAPTION_KEEP_LOADED ?? 'false' },
       { key: 'CAPTION_OPT_REFER_BY_NAME', value: CAPTION_OPT_REFER_BY_NAME ?? 'false' },
       { key: 'CAPTION_OPT_EXCLUDE_UNCHANGEABLE', value: CAPTION_OPT_EXCLUDE_UNCHANGEABLE ?? 'false' },
       { key: 'CAPTION_OPT_INCLUDE_LIGHTING', value: CAPTION_OPT_INCLUDE_LIGHTING ?? 'false' },
