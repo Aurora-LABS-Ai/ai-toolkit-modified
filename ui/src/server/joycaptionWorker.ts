@@ -12,17 +12,39 @@ type PendingRequest = {
   timer: NodeJS.Timeout;
 };
 
-let workerProcess: ChildProcessWithoutNullStreams | null = null;
-let workerStatus: WorkerStatus = 'unloaded';
-let workerPid: number | null = null;
-let workerModelPath = '';
-let lastError = '';
-let stderrLines: string[] = [];
-let requestId = 0;
-let pending = new Map<number, PendingRequest>();
-let readyPromise: Promise<void> | null = null;
-let readyResolve: (() => void) | null = null;
-let readyReject: ((reason?: any) => void) | null = null;
+type JoyCaptionWorkerState = {
+  process: ChildProcessWithoutNullStreams | null;
+  status: WorkerStatus;
+  pid: number | null;
+  modelPath: string;
+  lastError: string;
+  stderrLines: string[];
+  requestId: number;
+  pending: Map<number, PendingRequest>;
+  readyPromise: Promise<void> | null;
+  readyResolve: (() => void) | null;
+  readyReject: ((reason?: any) => void) | null;
+};
+
+const globalForJoyCaption = globalThis as typeof globalThis & {
+  __aitkJoyCaptionWorker?: JoyCaptionWorkerState;
+};
+
+const state =
+  globalForJoyCaption.__aitkJoyCaptionWorker ??
+  (globalForJoyCaption.__aitkJoyCaptionWorker = {
+    process: null,
+    status: 'unloaded',
+    pid: null,
+    modelPath: '',
+    lastError: '',
+    stderrLines: [],
+    requestId: 0,
+    pending: new Map<number, PendingRequest>(),
+    readyPromise: null,
+    readyResolve: null,
+    readyReject: null,
+  });
 
 const toolkitRoot = () => path.resolve(process.cwd(), '..');
 
@@ -30,23 +52,23 @@ export const isJoyCaptionBackend = (endpointType: string) =>
   endpointType === 'joycaption_local' || endpointType === 'joycaption_hf' || endpointType === 'joycaption';
 
 export const getJoyCaptionStatus = () => ({
-  status: workerStatus,
-  pid: workerPid,
-  modelPath: workerModelPath,
-  lastError,
-  stderr: stderrLines.slice(-20),
+  status: state.status,
+  pid: state.pid,
+  modelPath: state.modelPath,
+  lastError: state.lastError,
+  stderr: state.stderrLines.slice(-20),
 });
 
 const rejectAllPending = (error: Error) => {
-  for (const item of pending.values()) {
+  for (const item of state.pending.values()) {
     clearTimeout(item.timer);
     item.reject(error);
   }
-  pending.clear();
+  state.pending.clear();
 };
 
 const startWorker = async () => {
-  if (workerProcess) return;
+  if (state.process) return;
 
   const root = toolkitRoot();
   const scriptPath = path.join(root, 'scripts', 'joycaption_worker.py');
@@ -54,15 +76,15 @@ const startWorker = async () => {
   const pythonBin = fs.existsSync(venvPython) ? venvPython : 'python3';
   const hfToken = await getHFToken();
 
-  workerStatus = 'starting';
-  lastError = '';
-  stderrLines = [];
-  readyPromise = new Promise((resolve, reject) => {
-    readyResolve = resolve;
-    readyReject = reject;
+  state.status = 'starting';
+  state.lastError = '';
+  state.stderrLines = [];
+  state.readyPromise = new Promise((resolve, reject) => {
+    state.readyResolve = resolve;
+    state.readyReject = reject;
   });
 
-  workerProcess = spawn(pythonBin, [scriptPath], {
+  state.process = spawn(pythonBin, [scriptPath], {
     cwd: root,
     env: {
       ...process.env,
@@ -71,9 +93,9 @@ const startWorker = async () => {
       NO_ALBUMENTATIONS_UPDATE: '1',
     },
   });
-  workerPid = workerProcess.pid || null;
+  state.pid = state.process.pid || null;
 
-  const stdout = readline.createInterface({ input: workerProcess.stdout });
+  const stdout = readline.createInterface({ input: state.process.stdout });
   stdout.on('line', line => {
     const trimmed = line.trim();
     if (!trimmed) return;
@@ -84,69 +106,69 @@ const startWorker = async () => {
       return;
     }
     if (message.ready) {
-      readyResolve?.();
-      readyResolve = null;
-      readyReject = null;
+      state.readyResolve?.();
+      state.readyResolve = null;
+      state.readyReject = null;
       return;
     }
     const id = Number(message.id);
-    const item = pending.get(id);
+    const item = state.pending.get(id);
     if (!item) return;
-    pending.delete(id);
+    state.pending.delete(id);
     clearTimeout(item.timer);
     if (message.ok) {
       item.resolve(message);
     } else {
-      lastError = message.traceback || message.error || 'JoyCaption worker failed';
-      workerStatus = 'error';
-      item.reject(new Error(lastError));
+      state.lastError = message.traceback || message.error || 'JoyCaption worker failed';
+      state.status = 'error';
+      item.reject(new Error(state.lastError));
     }
   });
 
-  workerProcess.stderr.on('data', chunk => {
+  state.process.stderr.on('data', chunk => {
     const text = chunk.toString();
-    stderrLines.push(...text.split('\n').map(line => line.trim()).filter(Boolean));
-    stderrLines = stderrLines.slice(-50);
+    state.stderrLines.push(...text.split('\n').map(line => line.trim()).filter(Boolean));
+    state.stderrLines = state.stderrLines.slice(-50);
   });
 
-  workerProcess.on('error', error => {
-    lastError = error.message;
-    workerStatus = 'error';
-    readyReject?.(error);
-    readyResolve = null;
-    readyReject = null;
+  state.process.on('error', error => {
+    state.lastError = error.message;
+    state.status = 'error';
+    state.readyReject?.(error);
+    state.readyResolve = null;
+    state.readyReject = null;
     rejectAllPending(error);
   });
 
-  workerProcess.on('exit', (code, signal) => {
+  state.process.on('exit', (code, signal) => {
     const error = new Error(`JoyCaption worker exited${code !== null ? ` with code ${code}` : ''}${signal ? ` (${signal})` : ''}`);
-    if (workerStatus !== 'unloaded') {
-      lastError = error.message;
-      workerStatus = code === 0 ? 'unloaded' : 'error';
+    if (state.status !== 'unloaded') {
+      state.lastError = error.message;
+      state.status = code === 0 ? 'unloaded' : 'error';
     }
-    workerProcess = null;
-    workerPid = null;
-    workerModelPath = '';
-    readyReject?.(error);
-    readyResolve = null;
-    readyReject = null;
+    state.process = null;
+    state.pid = null;
+    state.modelPath = '';
+    state.readyReject?.(error);
+    state.readyResolve = null;
+    state.readyReject = null;
     rejectAllPending(error);
   });
 
-  await readyPromise;
+  await state.readyPromise;
 };
 
 const sendCommand = async (command: string, payload: any = {}, timeoutMs = 1000 * 60 * 20) => {
   await startWorker();
-  const proc = workerProcess;
+  const proc = state.process;
   if (!proc) throw new Error('JoyCaption worker is not running');
-  const id = ++requestId;
-  const promise = new Promise((resolve, reject) => {
+  const id = ++state.requestId;
+  const promise = new Promise<any>((resolve, reject) => {
     const timer = setTimeout(() => {
-      pending.delete(id);
+      state.pending.delete(id);
       reject(new Error(`JoyCaption worker timed out during ${command}`));
     }, timeoutMs);
-    pending.set(id, { resolve, reject, timer });
+    state.pending.set(id, { resolve, reject, timer });
   });
   proc.stdin.write(`${JSON.stringify({ id, command, payload })}\n`);
   return promise;
@@ -184,8 +206,8 @@ export const loadJoyCaptionWorker = async () => {
   if (!payload.model_name_or_path) throw new Error('Set a JoyCaption model path first');
   if (!isJoyCaptionBackend(payload.endpoint_type)) throw new Error('JoyCaption backend is not selected');
   const result = await sendCommand('load', payload);
-  workerStatus = 'loaded';
-  workerModelPath = payload.model_name_or_path;
+  state.status = 'loaded';
+  state.modelPath = payload.model_name_or_path;
   return result;
 };
 
@@ -194,26 +216,26 @@ export const captionWithJoyCaptionWorker = async (imagePath: string) => {
   if (!payload.model_name_or_path) throw new Error('Set a JoyCaption model path first');
   if (!isJoyCaptionBackend(payload.endpoint_type)) throw new Error('JoyCaption backend is not selected');
   const result = await sendCommand('caption', payload);
-  workerStatus = 'loaded';
-  workerModelPath = payload.model_name_or_path;
+  state.status = 'loaded';
+  state.modelPath = payload.model_name_or_path;
   return result;
 };
 
 export const unloadJoyCaptionWorker = async () => {
-  if (!workerProcess) {
-    workerStatus = 'unloaded';
-    workerPid = null;
-    workerModelPath = '';
+  if (!state.process) {
+    state.status = 'unloaded';
+    state.pid = null;
+    state.modelPath = '';
     return { ok: true, status: 'unloaded' };
   }
   try {
     await sendCommand('shutdown', {}, 1000 * 30);
   } catch {
-    workerProcess?.kill('SIGKILL');
+    state.process?.kill('SIGKILL');
   }
-  workerProcess = null;
-  workerStatus = 'unloaded';
-  workerPid = null;
-  workerModelPath = '';
+  state.process = null;
+  state.status = 'unloaded';
+  state.pid = null;
+  state.modelPath = '';
   return { ok: true, status: 'unloaded' };
 };
