@@ -12,8 +12,9 @@ import { apiClient } from '@/utils/api';
 import useSettings from '@/hooks/useSettings';
 import { pathJoin } from '@/utils/basic';
 import AutoCaptionButton from '@/components/AutoCaptionButton';
-import Link from 'next/link';
 import { isVideo, isAudio } from '@/utils/basic';
+import { isJoyCaptionBackend } from '@/components/AICaptionSettingsFields';
+import { AICaptionSettingsModal, openAICaptionSettingsModal } from '@/components/AICaptionSettingsModal';
 
 export default function DatasetPage({ params }: { params: { datasetName: string } }) {
   const [imgList, setImgList] = useState<{ img_path: string }[]>([]);
@@ -21,14 +22,23 @@ export default function DatasetPage({ params }: { params: { datasetName: string 
   const usableParams = use(params as any) as { datasetName: string };
   const datasetName = usableParams.datasetName;
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
-  const { settings, isSettingsLoaded } = useSettings();
+  const { settings, setSettings, isSettingsLoaded } = useSettings();
 
   // Selection state
   const [selectedImages, setSelectedImages] = useState<Set<string>>(new Set());
-  // Set of image paths currently being AI-captioned (triggers card effect)
+  // Selected-image captioning is queued so local JoyCaption only loads one image at a time.
   const [captioningImages, setCaptioningImages] = useState<Set<string>>(new Set());
+  const [captionQueue, setCaptionQueue] = useState<string[]>([]);
+  const [activeCaptionPath, setActiveCaptionPath] = useState<string | null>(null);
 
-  const captionConfigured = !!(settings.CAPTION_BASE_URL && settings.CAPTION_MODEL);
+  const captionConfigured =
+    isJoyCaptionBackend(settings.CAPTION_ENDPOINT_TYPE)
+      ? !!settings.CAPTION_MODEL
+      : !!(settings.CAPTION_BASE_URL && settings.CAPTION_MODEL);
+
+  const openCaptionSettings = useCallback(() => {
+    openAICaptionSettingsModal(settings, setSettings);
+  }, [settings, setSettings]);
 
   const imageOnlyList = useMemo(
     () => imgList.filter(img => !isVideo(img.img_path) && !isAudio(img.img_path)),
@@ -56,6 +66,13 @@ export default function DatasetPage({ params }: { params: { datasetName: string 
     if (datasetName) refreshImageList(datasetName);
   }, [datasetName]);
 
+  useEffect(() => {
+    if (activeCaptionPath || captionQueue.length === 0) return;
+    const [nextPath, ...remaining] = captionQueue;
+    setActiveCaptionPath(nextPath);
+    setCaptionQueue(remaining);
+  }, [activeCaptionPath, captionQueue]);
+
   // Selection helpers
   const toggleSelect = useCallback((imgPath: string) => {
     setSelectedImages(prev => {
@@ -79,11 +96,15 @@ export default function DatasetPage({ params }: { params: { datasetName: string 
       next.delete(imgPath);
       return next;
     });
+    setActiveCaptionPath(prev => (prev === imgPath ? null : prev));
   }, []);
 
   // Trigger AI captioning on all selected images
   const captionSelected = () => {
-    if (!captionConfigured) return;
+    if (!captionConfigured) {
+      openCaptionSettings();
+      return;
+    }
     const toCaption = [...selectedImages].filter(p => !isVideo(p) && !isAudio(p));
     if (toCaption.length === 0) return;
     setCaptioningImages(prev => {
@@ -91,6 +112,8 @@ export default function DatasetPage({ params }: { params: { datasetName: string 
       toCaption.forEach(p => next.add(p));
       return next;
     });
+    setActiveCaptionPath(toCaption[0]);
+    setCaptionQueue(toCaption.slice(1));
     setSelectedImages(new Set());
   };
 
@@ -156,30 +179,27 @@ export default function DatasetPage({ params }: { params: { datasetName: string 
                 >
                   Deselect All ({selectedCount})
                 </button>
-                {captionConfigured ? (
-                  <button
-                    onClick={captionSelected}
-                    disabled={captioningCount > 0}
-                    className="flex items-center gap-1.5 text-sm text-white bg-purple-600 hover:bg-purple-700 px-3 py-1 rounded-md transition-colors disabled:opacity-50"
-                  >
-                    <Sparkles className="w-3.5 h-3.5" />
-                    Caption Selected ({selectedCount})
-                  </button>
-                ) : (
-                  <Link
-                    href="/settings"
-                    className="flex items-center gap-1.5 text-sm text-white bg-orange-600 hover:bg-orange-700 px-3 py-1 rounded-md transition-colors"
-                  >
-                    <Settings2 className="w-3.5 h-3.5" />
-                    Setup AI Caption
-                  </Link>
-                )}
+                <button
+                  onClick={captionSelected}
+                  disabled={captioningCount > 0}
+                  className="flex items-center gap-1.5 text-sm text-white bg-purple-600 hover:bg-purple-700 px-3 py-1 rounded-md transition-colors disabled:opacity-50"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  Caption Selected ({selectedCount})
+                </button>
               </>
             )}
           </div>
         )}
 
         <div className="flex items-center gap-2">
+          <Button
+            className="inline-flex items-center gap-1.5 text-white bg-purple-600 hover:bg-purple-700 px-3 py-1 rounded-md"
+            onClick={openCaptionSettings}
+          >
+            <Settings2 className="w-4 h-4" />
+            Setup Captioner Instructions
+          </Button>
           <AutoCaptionButton
             datasetPath={`${pathJoin(settings.DATASETS_FOLDER, datasetName)}`}
             setIsAutoCaptioning={setIsAutoCaptioning}
@@ -199,16 +219,15 @@ export default function DatasetPage({ params }: { params: { datasetName: string 
           <div className="mb-4 flex items-center justify-between px-4 py-3 rounded-lg bg-gray-800 border border-gray-700">
             <div className="flex items-center gap-2 text-sm text-gray-300">
               <Sparkles className="w-4 h-4 text-purple-400 shrink-0" />
-              <span>
-                AI image captioning is available — configure an OpenAI-compatible endpoint to generate captions automatically.
-              </span>
+              <span>AI image captioning is available. Configure the captioner, then use the sparkle button on any image.</span>
             </div>
-            <Link
-              href="/settings"
+            <button
+              type="button"
+              onClick={openCaptionSettings}
               className="ml-4 shrink-0 text-sm text-white bg-purple-600 hover:bg-purple-700 px-3 py-1 rounded-md transition-colors"
             >
               Configure
-            </Link>
+            </button>
           </div>
         )}
 
@@ -233,15 +252,17 @@ export default function DatasetPage({ params }: { params: { datasetName: string 
                 onDelete={() => refreshImageList(datasetName)}
                 isSelected={selectedImages.has(img.img_path)}
                 onToggleSelect={() => toggleSelect(img.img_path)}
-                shouldAICaption={captioningImages.has(img.img_path)}
+                shouldAICaption={activeCaptionPath === img.img_path}
                 onAICaptionComplete={handleCaptionComplete}
                 captionConfigured={captionConfigured}
+                onConfigureCaption={openCaptionSettings}
               />
             ))}
           </div>
         )}
       </MainContent>
       <AddImagesModal />
+      <AICaptionSettingsModal />
     </>
   );
 }

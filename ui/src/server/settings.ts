@@ -68,17 +68,66 @@ export const getHFToken = async () => {
 };
 
 export const getCaptionSettings = async () => {
-  const keys = ['CAPTION_BASE_URL', 'CAPTION_API_KEY', 'CAPTION_MODEL', 'CAPTION_SYSTEM_PROMPT'];
+  const keys = [
+    'CAPTION_BASE_URL',
+    'CAPTION_API_KEY',
+    'CAPTION_MODEL',
+    'CAPTION_SYSTEM_PROMPT',
+    'CAPTION_USER_PROMPT',
+    'CAPTION_TRIGGER_WORD',
+    'CAPTION_MAX_TOKENS',
+    'CAPTION_ENDPOINT_TYPE',
+    'CAPTION_JOY_CAPTION_TYPE',
+    'CAPTION_JOY_CAPTION_LENGTH',
+    'CAPTION_JOY_LOW_VRAM',
+    'CAPTION_OPT_REFER_BY_NAME',
+    'CAPTION_OPT_EXCLUDE_UNCHANGEABLE',
+    'CAPTION_OPT_INCLUDE_LIGHTING',
+    'CAPTION_OPT_INCLUDE_CAMERA_ANGLE',
+    'CAPTION_OPT_INCLUDE_WATERMARK',
+    'CAPTION_OPT_INCLUDE_JPEG',
+    'CAPTION_OPT_INCLUDE_CAMERA_DETAILS',
+    'CAPTION_OPT_NO_SEXUAL',
+    'CAPTION_OPT_NO_REAL_PEOPLE',
+    'CAPTION_OPT_ARTISTIC_PERSPECTIVE',
+  ];
   const rows = await prisma.settings.findMany({ where: { key: { in: keys } } });
   const map: Record<string, string> = {};
   for (const row of rows) {
     map[row.key] = row.value;
   }
+  const endpointType =
+    map['CAPTION_ENDPOINT_TYPE'] === 'joycaption'
+      ? 'joycaption_local'
+      : map['CAPTION_ENDPOINT_TYPE'] || 'joycaption_local';
+  const defaultModel =
+    endpointType === 'joycaption_hf'
+      ? 'fancyfeast/llama-joycaption-beta-one-hf-llava'
+      : endpointType === 'joycaption_local'
+        ? '/root/alvan-custom/joy-captioner'
+        : '';
   return {
     baseUrl: map['CAPTION_BASE_URL'] || '',
     apiKey: map['CAPTION_API_KEY'] || '',
-    model: map['CAPTION_MODEL'] || '',
+    model: map['CAPTION_MODEL'] || defaultModel,
     systemPrompt: map['CAPTION_SYSTEM_PROMPT'] || '',
+    userPrompt: map['CAPTION_USER_PROMPT'] || '',
+    triggerWord: map['CAPTION_TRIGGER_WORD'] || '',
+    maxTokens: parseInt(map['CAPTION_MAX_TOKENS'] || '512') || 512,
+    endpointType,
+    joyCaptionType: map['CAPTION_JOY_CAPTION_TYPE'] || 'Descriptive',
+    joyCaptionLength: map['CAPTION_JOY_CAPTION_LENGTH'] || 'any',
+    joyLowVram: map['CAPTION_JOY_LOW_VRAM'] || 'false',
+    optReferByName: map['CAPTION_OPT_REFER_BY_NAME'] || 'false',
+    optExcludeUnchangeable: map['CAPTION_OPT_EXCLUDE_UNCHANGEABLE'] || 'false',
+    optIncludeLighting: map['CAPTION_OPT_INCLUDE_LIGHTING'] || 'false',
+    optIncludeCameraAngle: map['CAPTION_OPT_INCLUDE_CAMERA_ANGLE'] || 'false',
+    optIncludeWatermark: map['CAPTION_OPT_INCLUDE_WATERMARK'] || 'false',
+    optIncludeJpeg: map['CAPTION_OPT_INCLUDE_JPEG'] || 'false',
+    optIncludeCameraDetails: map['CAPTION_OPT_INCLUDE_CAMERA_DETAILS'] || 'false',
+    optNoSexual: map['CAPTION_OPT_NO_SEXUAL'] || 'false',
+    optNoRealPeople: map['CAPTION_OPT_NO_REAL_PEOPLE'] || 'false',
+    optArtisticPerspective: map['CAPTION_OPT_ARTISTIC_PERSPECTIVE'] || 'false',
   };
 };
 

@@ -12,6 +12,7 @@ This fork adds workflow improvements for local full fine-tuning, Z-Image Turbo t
 - Z-Image Turbo, Z-Image, and Z-Image De-Turbo presets expose the extras/base model path field. Z-Image Turbo defaults the extras path to `Tongyi-MAI/Z-Image-Turbo`.
 - FLUX.2 Klein can override its text encoder path with `model.te_name_or_path`.
 - Dataset pages support image selection and batch AI caption generation through an OpenAI-compatible vision endpoint configured in Settings.
+- Dataset image cards include a per-image AI caption button with OpenAI-compatible, local JoyCaption, or Hugging Face JoyCaption backends. Caption backend, model/model path, trigger word, style/length, include/exclude instructions, low-VRAM mode, and token limits are persisted across restarts and captions are written beside each image as a matching `.txt` file.
 - Captioning support now includes JoyCaption Beta One plus expanded caption template controls for caption style, length, trigger/name use, and optional detail filters.
 
 

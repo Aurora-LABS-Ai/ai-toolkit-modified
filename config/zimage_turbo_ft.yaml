@@ -1,0 +1,68 @@
+job: extension
+config:
+  name: zimage_turbo_ft
+  process:
+  - type: sd_trainer
+    training_folder: /root/alvan-custom/ai-toolkit/output
+    device: cuda
+    trigger_word: rosa
+    save:
+      dtype: bf16
+      save_every: 500
+      max_step_saves_to_keep: 2
+      save_format: diffusers
+    datasets:
+    - folder_path: /root/alvan-custom/ai-toolkit/datasets/train
+      caption_ext: txt
+      caption_dropout_rate: 0.05
+      shuffle_tokens: false
+      resolution:
+      - 1024
+    train:
+      batch_size: 1
+      steps: 3000
+      gradient_accumulation: 1
+      train_unet: true
+      train_text_encoder: false
+      gradient_checkpointing: false
+      noise_scheduler: flowmatch
+      optimizer: adafactor
+      lr: 3.0e-06
+      lr_scheduler: constant
+      lr_scheduler_params:
+        factor: 1.0
+      max_grad_norm: 0.5
+      ema_config:
+        use_ema: true
+        ema_decay: 0.999
+      dtype: bf16
+    model:
+      arch: zimage:turbo
+      # Local ComfyUI-format safetensors — converted automatically
+      name_or_path: /root/alvan-custom/Alvan-Comfy/models/diffusion_models/rosa_4-5ksteps_comfyui.safetensors
+      # Base model provides config + text encoder + tokenizer + VAE (downloads from HF if not local)
+      extras_name_or_path: Tongyi-MAI/Z-Image-Turbo
+      quantize: false
+      quantize_te: false
+      low_vram: false
+    sample:
+      sampler: flowmatch
+      sample_every: 500
+      width: 1024
+      height: 1024
+      neg: ''
+      seed: 42
+      walk_seed: true
+      guidance_scale: 3.5
+      sample_steps: 25
+      samples:
+      - prompt: rosa, professional photography, portrait
+    sqlite_db_path: ./aitk_db.db
+    performance_log_every: 0
+    logging:
+      log_every: 10
+      use_wandb: false
+      use_ui_logger: true
+meta:
+  name: zimage turbo full ft
+  version: '1.0'

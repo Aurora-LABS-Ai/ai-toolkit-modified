@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import useSettings from '@/hooks/useSettings';
 import { TopBar, MainContent } from '@/components/layout';
 import { apiClient } from '@/utils/api';
+import { AICaptionSettingsFields, applyCaptionDefaults } from '@/components/AICaptionSettingsFields';
 
 export default function Settings() {
   const { settings, setSettings } = useSettings();
@@ -13,8 +14,11 @@ export default function Settings() {
     e.preventDefault();
     setStatus('saving');
 
+    const nextSettings = applyCaptionDefaults(settings);
+    setSettings(nextSettings);
+
     apiClient
-      .post('/api/settings', settings)
+      .post('/api/settings', nextSettings)
       .then(() => {
         setStatus('success');
       })
@@ -113,75 +117,8 @@ export default function Settings() {
           </div>
 
           <div className="mt-6 border-t border-gray-700 pt-6">
-            <h2 className="text-base font-semibold mb-4 text-gray-200">AI Image Captioner (OpenAI-compatible)</h2>
-            <div className="space-y-4">
-              <div>
-                <label htmlFor="CAPTION_BASE_URL" className="block text-sm font-medium mb-2">
-                  Base URL
-                  <div className="text-gray-500 text-sm ml-1">
-                    OpenAI-compatible endpoint, e.g. <code>https://api.openai.com/v1</code> or a local Ollama/LMStudio server.
-                  </div>
-                </label>
-                <input
-                  type="text"
-                  id="CAPTION_BASE_URL"
-                  name="CAPTION_BASE_URL"
-                  value={settings.CAPTION_BASE_URL}
-                  onChange={handleChange}
-                  className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg focus:ring-2 focus:ring-gray-600 focus:border-transparent"
-                  placeholder="https://api.openai.com/v1"
-                />
-              </div>
-              <div>
-                <label htmlFor="CAPTION_API_KEY" className="block text-sm font-medium mb-2">
-                  API Key
-                  <div className="text-gray-500 text-sm ml-1">Leave blank if your server does not require authentication.</div>
-                </label>
-                <input
-                  type="password"
-                  id="CAPTION_API_KEY"
-                  name="CAPTION_API_KEY"
-                  value={settings.CAPTION_API_KEY}
-                  onChange={handleChange}
-                  className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg focus:ring-2 focus:ring-gray-600 focus:border-transparent"
-                  placeholder="sk-..."
-                />
-              </div>
-              <div>
-                <label htmlFor="CAPTION_MODEL" className="block text-sm font-medium mb-2">
-                  Model ID
-                  <div className="text-gray-500 text-sm ml-1">
-                    Must support vision. e.g. <code>gpt-4o</code>, <code>llava</code>, <code>qwen2.5-vl:7b</code>
-                  </div>
-                </label>
-                <input
-                  type="text"
-                  id="CAPTION_MODEL"
-                  name="CAPTION_MODEL"
-                  value={settings.CAPTION_MODEL}
-                  onChange={handleChange}
-                  className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg focus:ring-2 focus:ring-gray-600 focus:border-transparent"
-                  placeholder="gpt-4o"
-                />
-              </div>
-              <div>
-                <label htmlFor="CAPTION_SYSTEM_PROMPT" className="block text-sm font-medium mb-2">
-                  System Prompt
-                  <div className="text-gray-500 text-sm ml-1">
-                    Instructions for the captioning model. This is sent as the system message.
-                  </div>
-                </label>
-                <textarea
-                  id="CAPTION_SYSTEM_PROMPT"
-                  name="CAPTION_SYSTEM_PROMPT"
-                  value={settings.CAPTION_SYSTEM_PROMPT}
-                  onChange={e => setSettings(prev => ({ ...prev, CAPTION_SYSTEM_PROMPT: e.target.value }))}
-                  rows={4}
-                  className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg focus:ring-2 focus:ring-gray-600 focus:border-transparent resize-y"
-                  placeholder="Describe this image in detail for use as a training caption for an AI image generation model. Be specific about the subject, style, lighting, and composition. No preamble."
-                />
-              </div>
-            </div>
+            <h2 className="text-base font-semibold mb-4 text-gray-200">AI Image Captioner</h2>
+            <AICaptionSettingsFields settings={settings} setSettings={setSettings} />
           </div>
 
           <button

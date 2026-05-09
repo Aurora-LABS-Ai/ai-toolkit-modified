@@ -20,6 +20,7 @@ interface DatasetImageCardProps {
   shouldAICaption?: boolean;
   onAICaptionComplete?: (imgPath: string) => void;
   captionConfigured?: boolean;
+  onConfigureCaption?: () => void;
 }
 
 const DatasetImageCard: React.FC<DatasetImageCardProps> = ({
@@ -34,6 +35,7 @@ const DatasetImageCard: React.FC<DatasetImageCardProps> = ({
   shouldAICaption = false,
   onAICaptionComplete,
   captionConfigured = false,
+  onConfigureCaption,
 }) => {
   const cardRef = useRef<HTMLDivElement>(null);
   const [isVisible, setIsVisible] = useState<boolean>(false);
@@ -82,6 +84,10 @@ const DatasetImageCard: React.FC<DatasetImageCardProps> = ({
 
   const runAICaption = async () => {
     if (aiCaptioningRef.current) return;
+    if (!captionConfigured) {
+      onConfigureCaption?.();
+      return;
+    }
     aiCaptioningRef.current = true;
     setIsAICaptioning(true);
     setAiError(null);
@@ -226,13 +232,16 @@ const DatasetImageCard: React.FC<DatasetImageCardProps> = ({
           {/* Action buttons — top right */}
           <div className="absolute top-1 right-1 flex space-x-1 z-10">
             {/* AI caption button — images only */}
-            {isItImage && captionConfigured && (
+            {isItImage && (
               <button
                 type="button"
-                title="Generate AI caption"
+                title={captionConfigured ? 'Generate AI caption' : 'Configure AI caption'}
                 onClick={() => runAICaption()}
                 disabled={isAICaptioning}
-                className="bg-gray-800 hover:bg-purple-700 rounded-full p-2 transition-colors disabled:opacity-50"
+                className={classNames(
+                  'rounded-full p-2 transition-colors disabled:opacity-50',
+                  captionConfigured ? 'bg-gray-800 hover:bg-purple-700' : 'bg-orange-700 hover:bg-orange-600',
+                )}
               >
                 {isAICaptioning
                   ? <Loader2 className="w-3.5 h-3.5 animate-spin" />

@@ -262,6 +262,8 @@ class JoyCaptioner(BaseCaptioner):
         model_path = self.caption_config.model_name_or_path
         self.print_and_status_update(f"Loading JoyCaption processor from {model_path}")
         self.processor = AutoProcessor.from_pretrained(model_path)
+        if self.processor.tokenizer.pad_token is None:
+            self.processor.tokenizer.pad_token = self.processor.tokenizer.eos_token
 
         self.print_and_status_update(f"Loading JoyCaption model (bfloat16)")
         self.model = LlavaForConditionalGeneration.from_pretrained(
