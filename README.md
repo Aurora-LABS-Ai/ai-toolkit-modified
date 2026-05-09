@@ -8,6 +8,7 @@ This fork adds workflow improvements for local full fine-tuning, Z-Image Turbo t
 
 - Z-Image can load a local single-file ComfyUI `.safetensors` transformer checkpoint and convert it to Diffusers keys at load time. Use `model.extras_name_or_path` to point at the base Z-Image repo, such as `Tongyi-MAI/Z-Image-Turbo`, so config, tokenizer, text encoder, and VAE files can be resolved.
 - The new-job UI includes a LoRA vs Full Fine-tuning mode selector, exposes extra model paths for Z-Image presets, keeps Import Config visible in both simple and advanced views, and adds fields for optional VAE/text-encoder overrides.
+- Imported YAML configs can round-trip back into the simple card UI with populated fields for runtime settings, save format, dataset caption options, scheduler factor, train dtype, and logging. Missing optional YAML fields are migrated to safe UI defaults.
 - Z-Image Turbo, Z-Image, and Z-Image De-Turbo presets expose the extras/base model path field. Z-Image Turbo defaults the extras path to `Tongyi-MAI/Z-Image-Turbo`.
 - FLUX.2 Klein can override its text encoder path with `model.te_name_or_path`.
 - Dataset pages support image selection and batch AI caption generation through an OpenAI-compatible vision endpoint configured in Settings.

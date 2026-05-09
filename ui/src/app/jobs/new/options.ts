@@ -969,7 +969,7 @@ export const jobTypeOptions: JobTypeOption[] = [
   {
     value: 'sd_trainer',
     label: 'Full Fine-tuning',
-    disableSections: ['slider', 'trigger_word', 'train.diff_output_preservation', 'train.blank_prompt_preservation'],
+    disableSections: ['slider', 'train.diff_output_preservation', 'train.blank_prompt_preservation'],
   },
   {
     value: 'concept_slider',

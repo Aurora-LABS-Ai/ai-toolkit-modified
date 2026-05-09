@@ -118,8 +118,8 @@ export default function SimpleJob({
   }, [modelArch]);
 
   const numTopCards = useMemo(() => {
-    // Full FT has no Target/LoRA card
-    let count = isFullFT ? 3 : 4; // job settings, model config, [target if lora], save config
+    // job settings, runtime, model config, target, save config
+    let count = 5;
     if (modelArch?.additionalSections?.includes('model.multistage')) {
       count += 1;
     }
@@ -139,6 +139,9 @@ export default function SimpleJob({
   }
   if (numTopCards == 6) {
     topBarClass = 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-6 gap-6';
+  }
+  if (numTopCards >= 7) {
+    topBarClass = 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-7 gap-6';
   }
 
   const numTrainingCols = useMemo(() => {
@@ -311,6 +314,41 @@ export default function SimpleJob({
                 required
               />
             )}
+          </Card>
+
+          <Card title="Runtime">
+            <TextInput
+              label="Training Folder"
+              value={jobConfig.config.process[0].training_folder || ''}
+              onChange={value => setJobConfig(value, 'config.process[0].training_folder')}
+              placeholder="output"
+            />
+            <SelectInput
+              label="Device"
+              className="pt-2"
+              value={jobConfig.config.process[0].device || 'cuda'}
+              onChange={value => setJobConfig(value, 'config.process[0].device')}
+              options={[
+                { value: 'cuda', label: 'CUDA' },
+                { value: 'mps', label: 'MPS' },
+                { value: 'cpu', label: 'CPU' },
+              ]}
+            />
+            <TextInput
+              label="SQLite DB Path"
+              className="pt-2"
+              value={jobConfig.config.process[0].sqlite_db_path || ''}
+              onChange={value => setJobConfig(value || undefined, 'config.process[0].sqlite_db_path')}
+              placeholder="./aitk_db.db"
+            />
+            <NumberInput
+              label="Performance Log Every"
+              className="pt-2"
+              value={jobConfig.config.process[0].performance_log_every ?? 0}
+              onChange={value => setJobConfig(value, 'config.process[0].performance_log_every')}
+              placeholder="eg. 0"
+              min={0}
+            />
           </Card>
 
           {/* Model Configuration Section */}
@@ -605,8 +643,19 @@ export default function SimpleJob({
                 { value: 'fp32', label: 'FP32' },
               ]}
             />
+            <SelectInput
+              label="Save Format"
+              className="pt-2"
+              value={jobConfig.config.process[0].save.save_format || 'diffusers'}
+              onChange={value => setJobConfig(value, 'config.process[0].save.save_format')}
+              options={[
+                { value: 'diffusers', label: 'Diffusers' },
+                { value: 'safetensors', label: 'Safetensors' },
+              ]}
+            />
             <NumberInput
               label="Save Every"
+              className="pt-2"
               value={jobConfig.config.process[0].save.save_every}
               onChange={value => setJobConfig(value, 'config.process[0].save.save_every')}
               placeholder="eg. 250"
@@ -932,8 +981,46 @@ export default function SimpleJob({
                   placeholder="Leave blank to use main LR"
                   min={0}
                 />
+                <NumberInput
+                  label="LR Scheduler Factor"
+                  className="pt-2"
+                  value={(jobConfig.config.process[0].train as any).lr_scheduler_params?.factor ?? 1.0}
+                  onChange={value => setJobConfig(value, 'config.process[0].train.lr_scheduler_params.factor')}
+                  placeholder="eg. 1.0"
+                  min={0}
+                />
+                <SelectInput
+                  label="Train Data Type"
+                  className="pt-2"
+                  value={jobConfig.config.process[0].train.dtype || 'bf16'}
+                  onChange={value => setJobConfig(value, 'config.process[0].train.dtype')}
+                  options={[
+                    { value: 'bf16', label: 'BF16' },
+                    { value: 'fp16', label: 'FP16' },
+                    { value: 'fp32', label: 'FP32' },
+                  ]}
+                />
               </div>
               <div>
+                <NumberInput
+                  label="Log Every"
+                  value={jobConfig.config.process[0].logging?.log_every ?? 1}
+                  onChange={value => setJobConfig(value, 'config.process[0].logging.log_every')}
+                  placeholder="eg. 10"
+                  min={0}
+                />
+                <FormGroup label="Logging" className="pt-2">
+                  <Checkbox
+                    label="Use UI Logger"
+                    checked={jobConfig.config.process[0].logging?.use_ui_logger ?? true}
+                    onChange={value => setJobConfig(value, 'config.process[0].logging.use_ui_logger')}
+                  />
+                  <Checkbox
+                    label="Use WandB"
+                    checked={(jobConfig.config.process[0].logging as any)?.use_wandb || false}
+                    onChange={value => setJobConfig(value, 'config.process[0].logging.use_wandb')}
+                  />
+                </FormGroup>
                 <Checkbox
                   label="Do Differential Guidance"
                   docKey={'train.do_differential_guidance'}
@@ -1095,6 +1182,13 @@ export default function SimpleJob({
                         min={0}
                         required
                       />
+                      <TextInput
+                        label="Caption Extension"
+                        className="pt-2"
+                        value={dataset.caption_ext || 'txt'}
+                        onChange={value => setJobConfig(value, `config.process[0].datasets[${i}].caption_ext`)}
+                        placeholder="txt"
+                      />
                       {modelArch?.additionalSections?.includes('datasets.num_frames') && !dataset.auto_frame_count && (
                         <NumberInput
                           label="Num Frames"
@@ -1116,6 +1210,11 @@ export default function SimpleJob({
                           onChange={value =>
                             setJobConfig(value, `config.process[0].datasets[${i}].cache_latents_to_disk`)
                           }
+                        />
+                        <Checkbox
+                          label="Shuffle Tokens"
+                          checked={dataset.shuffle_tokens || false}
+                          onChange={value => setJobConfig(value, `config.process[0].datasets[${i}].shuffle_tokens`)}
                         />
                         <Checkbox
                           label="Is Regularization"

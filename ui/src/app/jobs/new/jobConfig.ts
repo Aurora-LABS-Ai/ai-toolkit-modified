@@ -3,6 +3,8 @@ import { isMac } from '@/helpers/basic';
 import { defaultSampleConfig } from '@/helpers/defaultSamples';
 import { JobConfig, SampleConfig, DatasetConfig, SliderConfig } from '@/types';
 
+const cloneDefault = <T,>(value: T): T => JSON.parse(JSON.stringify(value));
+
 export const defaultDatasetConfig: DatasetConfig = {
   folder_path: '/path/to/images/folder',
   mask_path: null,
@@ -120,6 +122,9 @@ export const defaultJobConfig: JobConfig = {
 };
 
 export const migrateJobConfig = (jobConfig: JobConfig): JobConfig => {
+  const process = jobConfig.config.process[0] as any;
+  const defaultProcess = defaultJobConfig.config.process[0] as any;
+
   // upgrade prompt strings to samples
   if (
     jobConfig?.config?.process &&
@@ -159,8 +164,39 @@ export const migrateJobConfig = (jobConfig: JobConfig): JobConfig => {
     jobConfig.config.process[0].device = 'mps';
   }
 
+  process.save = {
+    ...cloneDefault(defaultProcess.save),
+    ...(process.save || {}),
+  };
+
+  process.model = {
+    ...cloneDefault(defaultProcess.model),
+    ...(process.model || {}),
+    model_kwargs: {
+      ...cloneDefault(defaultProcess.model.model_kwargs || {}),
+      ...(process.model?.model_kwargs || {}),
+    },
+  };
+  if (process.model.model_kwargs.match_target_res === undefined) {
+    process.model.model_kwargs.match_target_res = false;
+  }
+  if (process.model.low_vram === undefined) process.model.low_vram = false;
+  if (process.model.quantize === undefined) process.model.quantize = false;
+  if (process.model.quantize_te === undefined) process.model.quantize_te = false;
+  if (process.model.qtype === undefined) process.model.qtype = 'qfloat8';
+  if (process.model.qtype_te === undefined) process.model.qtype_te = 'qfloat8';
+
+  process.datasets = (process.datasets && process.datasets.length > 0 ? process.datasets : [cloneDefault(defaultDatasetConfig)]).map(
+    (dataset: any) => ({
+      ...cloneDefault(defaultDatasetConfig),
+      ...dataset,
+      controls: dataset.controls || [],
+      resolution: dataset.resolution || cloneDefault(defaultDatasetConfig.resolution),
+    }),
+  );
+
   // Ensure every train field SimpleJob reads exists so no config can crash the form
-  const train = jobConfig.config.process[0].train as any;
+  const train = process.train as any;
   if (train) {
     if (train.optimizer_params === undefined) train.optimizer_params = { weight_decay: 0 };
     if (train.timestep_type === undefined) train.timestep_type = 'sigmoid';
@@ -198,7 +234,12 @@ export const migrateJobConfig = (jobConfig: JobConfig): JobConfig => {
   }
 
   // Ensure sample exists
-  const sample = jobConfig.config.process[0].sample as any;
+  process.sample = {
+    ...cloneDefault(defaultSampleConfig),
+    ...(process.sample || {}),
+    samples: process.sample?.samples || [],
+  };
+  const sample = process.sample as any;
   if (sample) {
     if (!sample.samples) sample.samples = [];
     if (sample.seed === undefined) sample.seed = 42;
